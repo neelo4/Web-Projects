@@ -85,6 +85,10 @@ showMillionareBtn.addEventListener('click' , showMill);
 calculateBtn.addEventListener('click', wealthCalc)
 
 
+// function getValue (e){
+//   const val = e.value;
+//   console.log(val);
+// }
 
 
 
