@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
 import { Spinner } from '@iag/chroma-react-ui.spinner';
+import React, { lazy, Suspense, useEffect } from 'react';
 import ErrorBoundary, { ErrorTypeCode } from '../../../components/ErrorBoundary';
-import { lazy, Suspense } from 'react';
 import { Brand } from '../../../models/Brand';
 import sessionId from '../../../sessionId';
 
@@ -13,22 +13,20 @@ interface EdocsSectionProps {
   brand: Brand;
   partyId: string;
   primaryEmail: string;
-  eDocsUpdated: boolean;
+  eDocsStatus: boolean;
   handleSettingLink: (settingStatus: boolean) => void;
   setIsEDocsRequestComplete: (status: boolean) => void;
   setIsResponseLoading: (status: boolean) => void;
-  setIsEDocsConsentChecked: (status: boolean) => void;
 }
 
-const EdocsSection: React.FC<EdocsSectionProps> = ({
+const EDocsSection: React.FC<BrandDataProps & EdocsSectionProps> = ({
   brand,
   partyId,
   primaryEmail,
-  eDocsUpdated,
   handleSettingLink,
   setIsEDocsRequestComplete,
   setIsResponseLoading,
-  setIsEDocsConsentChecked,
+  eDocsStatus,
 }) => {
   useEffect(() => {
     const handleSaveEdocsEvent = (e: CustomEvent<{ status: boolean; loadingStatus: boolean }>) => {
@@ -54,7 +52,7 @@ const EdocsSection: React.FC<EdocsSectionProps> = ({
             partyId={partyId}
             xIagContext={{ sessionId }}
             primaryEmail={primaryEmail}
-            eDocsStatus={eDocsUpdated}
+            eDocsStatus={eDocsStatus}
             handleSettingLink={handleSettingLink}
           />
         </Suspense>
@@ -63,4 +61,4 @@ const EdocsSection: React.FC<EdocsSectionProps> = ({
   );
 };
 
-export default EdocsSection;
+export default connectIagBrand()(EDocsSection);
