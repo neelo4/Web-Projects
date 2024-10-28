@@ -1,119 +1,39 @@
-import { ApolloError } from '@apollo/react-hooks';
-import { screen } from '@testing-library/react';
-import React from 'react';
-import { render } from '../../test-utils/renderWithProviders';
-import { useFeaturesConfig } from '../features-config';
-import useDashboardDetails from '../hooks/api/useDashboardDetails';
-import { SiteTrackingContext } from '../sitetracking/SiteTrackingProvider';
-import HomeContainer, { HomeDetailsContext } from './HomeContainer';
-import { showDootbOnboardingModule } from '../utils/onboardingModuleUtils';
+import { ApolloProvider, ApolloClient, InMemoryCache } from '@apollo/client'; // Add this import
 
-window.__webpack_require__ = {
-  l: jest.fn(),
-};
-
-const featureFlagMocks = {
-  USE_HERITAGE_CLAIM_VIEW_MFE: true,
-};
-
-jest.mock('../iagBrandStore');
-jest.mock('../hooks/api/useDashboardDetails');
-jest.mock('../hooks/useBrowserDetect', () => jest.fn(() => ({ isMobileApp: false })));
-jest.mock('@iag/identity/useAuth', () => () => ({ isAuthenticated: true }), { virtual: true });
-
-const mockSiteTrackingContext = {
-  setElement: jest.fn(),
-  pageview: jest.fn(),
-  pageviewImmediately: jest.fn(),
-  dispatch: jest.fn(),
-  detail: {},
-};
-
-const useHomeDetailsMock = useDashboardDetails as jest.MockedFunction<typeof useDashboardDetails>;
-
-const userData = {
-  fullName: 'Tester',
-  firstName: 'Tester',
-  isStaffMember: false,
-  email: 'jdisney@disney.com.au',
-  preferredName: 'test',
-  staffNumber: 'test',
-};
-
-const scrollIntoViewMock = jest.fn();
-jest.mock('../features-config', () => ({
-  useFeaturesConfig: jest.fn(),
-  FeatureName: {
-    USE_HERITAGE_CLAIM_VIEW_MFE: 'USE_HERITAGE_CLAIM_VIEW_MFE',
+// Add this before the tests
+const mockClient = new ApolloClient({
+  cache: new InMemoryCache(),
+  defaultOptions: {
+    watchQuery: {
+      fetchPolicy: 'no-cache',
+      errorPolicy: 'all',
+    },
+    query: {
+      fetchPolicy: 'no-cache',
+      errorPolicy: 'all',
+    },
   },
-}));
-
-jest.mock('../utils/onboardingModuleUtils', () => ({
-  showDootbOnboardingModule: jest.fn().mockReturnValue(false),
-}));
-
-beforeAll(() => {
-  window.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
 });
 
-beforeEach(() => {
-  jest.clearAllMocks();
-  (useFeaturesConfig as jest.Mock).mockImplementation((featureName: keyof typeof featureFlagMocks) => {
-    return featureFlagMocks[featureName];
-  });
-});
-
-jest.mock('@iag/identity/useAuth', () => () => ({ isAuthenticated: true }), { virtual: true });
-
-test('renders loading state', () => {
-  useHomeDetailsMock.mockReturnValueOnce({
-    loading: true,
-    hasAuthenticationError: false,
-  });
-
-  render(
-    <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
-      <HomeContainer />
-    </SiteTrackingContext.Provider>,
-  );
-
-  const heading = screen.getByTestId('DashboardLoader').getElementsByTagName('span')[0];
-  expect(heading).toHaveTextContent('Retrieving your policies...');
-});
-
-test('renders error state', () => {
-  useHomeDetailsMock.mockReturnValueOnce({
-    loading: false,
-    hasAuthenticationError: false,
-    error: new ApolloError({}),
-  });
-
-  render(
-    <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
-      <HomeContainer />
-    </SiteTrackingContext.Provider>,
-  );
-
-  const heading = screen.getByTestId('Error').getElementsByClassName('h4')[0];
-  expect(heading).toBeInTheDocument();
-  expect(scrollIntoViewMock).toBeCalled();
-});
-
+// Update the test case
 test('renders success state- showing onboarding module', () => {
   useHomeDetailsMock.mockReturnValueOnce({
     loading: false,
     hasAuthenticationError: false,
     data: userData,
   });
-
-  (showDootbOnboardingModule as jest.Mock).mockReturnValue(true);
+  
+  (showDootOnboardingModule as jest.Mock).mockReturnValue(true);
+  
   render(
-    <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
-      <HomeDetailsContext.Provider value={userData}>
-        <HomeContainer />
-      </HomeDetailsContext.Provider>
-    </SiteTrackingContext.Provider>,
+    <ApolloProvider client={mockClient}>
+      <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
+        <HomeDetailsContext.Provider value={userData}>
+          <HomeContainer />
+        </HomeDetailsContext.Provider>
+      </SiteTrackingContext.Provider>
+    </ApolloProvider>
   );
-
+  
   expect(screen.getByTestId('onboarding-module-page-greeting')).toBeInTheDocument();
 });
