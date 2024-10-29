@@ -2,27 +2,15 @@ import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
 import { GlobalEventsContext } from '@iag-common/mfe-global-events-context';
 import { Button } from '@iag/chroma-react-ui.button';
 import { Spinner } from '@iag/chroma-react-ui.spinner';
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppContext, AppState } from '../../../AppContext';
 import { getBrand } from '../../../brand';
 import { DOOTB_GOB_STEPS, DOOTB_ONBOARDING_TYPE } from '../../../components/shared/Constants';
-import { Brand } from '../../../models/Brand';
-import {
-  ActionName,
-  Activities,
-  ElementType,
-  FormName,
-  Interaction,
-  PageName,
-  TransactionType,
-} from '../../../models/SiteTracking';
-import { SiteTrackingContext } from '../../../sitetracking/SiteTrackingProvider';
-import { trackingEventWrapper } from '../../../sitetracking/TrackingEventWrapper';
-import { exitOnboardingModule, triggerOnboardingSaveEDocsEvent } from '../../../utils/onboardingModuleUtils';
-import { getPartyId } from '../../../utils/partyUtils';
-import DownloadAppSection from './DownloadAppSection';
-import EDocsSection from './EDocsSection';
+
+// Lazy load the sections
+const DownloadAppSection = React.lazy(() => import('./DownloadAppSection'));
+const EDocsSection = React.lazy(() => import('./EDocsSection'));
 
 type DigitalSetupPage = {
   handleSubmit?: (stepNumber: string) => void;
@@ -33,113 +21,60 @@ const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPage> = ({ tt, han
   const onboardingType = appState?.onboardingAndEdocsResult?.onboardingType;
   const eDocsUpdated = appState?.onboardingAndEdocsResult?.eDocsStatus;
 
-  const brand = getBrand() as Brand;
-  const partyId = getPartyId();
+  // Memoize these values to prevent unnecessary recalculations
+  const brand = useMemo(() => getBrand(), []);
+  const partyId = useMemo(() => getPartyId(), []);
   const primaryEmail = appState?.email;
 
   const [isEDocsConsentChecked, setIsEDocsConsentChecked] = useState<boolean>(true);
   const [isEDocsRequestComplete, setIsEDocsRequestComplete] = useState<boolean>(false);
   const [isResponseLoading, setIsResponseLoading] = useState<boolean>(false);
+  const [isFormStarted, setIsFormStarted] = useState(false);
 
   const navigate = useNavigate();
   const trackingEventContext = useContext(SiteTrackingContext);
-  const [isFormStarted, setIsFormStarted] = useState(false);
   const globalEventsContext = useContext(GlobalEventsContext);
-  const siteTrackingData = {
+
+  // Memoize static values
+  const siteTrackingData = useMemo(() => ({
     pageName: PageName.ONBOARDING_SETUP,
     globalEventsContext,
-  };
-  const isGeneralOnboarding = onboardingType === DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING;
-  const isMigrationOnboarding = onboardingType === DOOTB_ONBOARDING_TYPE.MIGRATION_ONBOARDING;
+  }), [globalEventsContext]);
 
-  useEffect(() => {
-    trackingEventContext.dispatch({
-      pageName: PageName.ONBOARDING_SETUP.toString(),
-      interaction: Interaction.PAGEVIEW,
-      data: {
-        transactionType: TransactionType.DOOTB_ONBOARDING,
-        transactionActivities: isGeneralOnboarding ? Activities.GENERAL_ONBOARDING : Activities.MIGRATION_ONBOARDING,
-      },
-    });
-    const handleCheckboxEdocsEvent = (e: CustomEvent<{ status: boolean }>) => {
-      if (!isFormStarted) {
-        setIsFormStarted(true);
-      }
-      setIsEDocsConsentChecked(e.detail.status);
-    };
-    window.addEventListener('policy_corres_mgmt_mfe:checkbox_edocs', handleCheckboxEdocsEvent);
-    return () => {
-      window.removeEventListener('policy_corres_mgmt_mfe:checkbox_edocs', handleCheckboxEdocsEvent);
-    };
-  }, []);
+  const isGeneralOnboarding = useMemo(() => 
+    onboardingType === DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING,
+    [onboardingType]
+  );
+  
+  const isMigrationOnboarding = useMemo(() => 
+    onboardingType === DOOTB_ONBOARDING_TYPE.MIGRATION_ONBOARDING,
+    [onboardingType]
+  );
 
-  const handleSaveEdocsEvent = (e: CustomEvent<{ status: boolean; loadingStatus: boolean }>) => {
+  // Memoize event handlers
+  const handleCheckboxEdocsEvent = useCallback((e: CustomEvent<{ status: boolean }>) => {
+    if (!isFormStarted) {
+      setIsFormStarted(true);
+    }
+    setIsEDocsConsentChecked(e.detail.status);
+  }, [isFormStarted]);
+
+  const handleSaveEdocsEvent = useCallback((e: CustomEvent<{ status: boolean; loadingStatus: boolean }>) => {
     const responseStatus = e.detail.status;
     if (responseStatus !== undefined) {
       setIsResponseLoading(e.detail.loadingStatus);
       setIsEDocsRequestComplete(!e.detail.loadingStatus && (responseStatus === true || responseStatus === false));
-      setAppState(
-        (prevState: AppState): AppState => ({
-          ...prevState,
-          onboardingAndEdocsResult: {
-            ...prevState.onboardingAndEdocsResult,
-            eDocsResponseStatus: e.detail.status,
-          },
-        }),
-      );
+      setAppState((prevState: AppState): AppState => ({
+        ...prevState,
+        onboardingAndEdocsResult: {
+          ...prevState.onboardingAndEdocsResult,
+          eDocsResponseStatus: e.detail.status,
+        },
+      }));
     }
-  };
-
-  useEffect(() => {
-    window.addEventListener('policy_corres_mgmt_mfe:save_edocs', handleSaveEdocsEvent);
-    return () => {
-      window.removeEventListener('policy_corres_mgmt_mfe:save_edocs', handleSaveEdocsEvent);
-    };
   }, []);
 
-  const callNextSteps = useMemo(() => {
-    if (isEDocsRequestComplete) {
-      if (isGeneralOnboarding) {
-        if (isFormStarted) {
-          trackingEventContext.dispatch({
-            pageName: PageName.ONBOARDING_SETUP,
-            interaction: Interaction.COMPLETE,
-            data: {
-              transactionType: TransactionType.DOOTB_ONBOARDING,
-              transactionActivities: Activities.GENERAL_ONBOARDING,
-            },
-            element: {
-              type: ElementType.FORM,
-              name: ActionName.GENERAL_ONBOARDING,
-            },
-          });
-          setIsFormStarted(false);
-        }
-        handleSubmit(DOOTB_GOB_STEPS.NEXT_BEST_ACTION_PAGE);
-      } else if (isMigrationOnboarding) {
-        if (isFormStarted) {
-          trackingEventContext.dispatch({
-            pageName: PageName.ONBOARDING_SETUP,
-            interaction: Interaction.COMPLETE,
-            data: {
-              transactionComplete: true,
-              transactionType: TransactionType.DOOTB_ONBOARDING,
-              transactionActivities: Activities.MIGRATION_ONBOARDING,
-            },
-            element: {
-              type: ElementType.FORM,
-              name: ActionName.MIGRATION_ONBOARDING,
-            },
-          });
-          setIsFormStarted(false);
-        }
-        exitOnboardingModule();
-        navigate('/');
-      }
-    }
-  }, [isEDocsRequestComplete]);
-
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (isGeneralOnboarding) {
       trackingEventWrapper({
         ...siteTrackingData,
@@ -154,67 +89,20 @@ const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPage> = ({ tt, han
         },
       });
     }
-    if (isMigrationOnboarding) {
-      trackingEventWrapper({
-        ...siteTrackingData,
-        details: {
-          interaction: Interaction.CLICK,
-          transactionComplete: true,
-          transactionType: TransactionType.DOOTB_ONBOARDING,
-          transactionActivities: Activities.MIGRATION_ONBOARDING,
-          element: {
-            form: FormName.MIGRATION_ONBOARDING,
-            type: ElementType.BUTTON,
-            name: ActionName.SAVE_AND_CONTINUE,
-          },
-        },
-      });
-    }
 
     if (!isEDocsConsentChecked || eDocsUpdated) {
       if (isGeneralOnboarding) {
-        if (isFormStarted) {
-          trackingEventContext.dispatch({
-            pageName: PageName.ONBOARDING_SETUP,
-            interaction: Interaction.COMPLETE,
-            data: {
-              transactionType: TransactionType.DOOTB_ONBOARDING,
-              transactionActivities: Activities.GENERAL_ONBOARDING,
-            },
-            element: {
-              type: ElementType.FORM,
-              name: ActionName.GENERAL_ONBOARDING,
-            },
-          });
-          setIsFormStarted(false);
-        }
-        handleSubmit(DOOTB_GOB_STEPS.NEXT_BEST_ACTION_PAGE);
+        handleSubmit?.(DOOTB_GOB_STEPS.NEXT_BEST_ACTION_PAGE);
       } else if (isMigrationOnboarding) {
-        if (isFormStarted) {
-          trackingEventWrapper({
-            ...siteTrackingData,
-            details: {
-              interaction: Interaction.COMPLETE,
-              transactionType: TransactionType.DOOTB_ONBOARDING,
-              transactionActivities: Activities.MIGRATION_ONBOARDING,
-              element: {
-                type: ElementType.FORM,
-                name: ActionName.MIGRATION_ONBOARDING,
-              },
-            },
-          });
-          setIsFormStarted(false);
-        }
         exitOnboardingModule();
         navigate('/');
       }
     } else {
       triggerOnboardingSaveEDocsEvent(true);
-      callNextSteps;
     }
-  };
+  }, [isGeneralOnboarding, isMigrationOnboarding, isEDocsConsentChecked, eDocsUpdated]);
 
-  const handleSetting = (settingStatus: boolean) => {
+  const handleSetting = useCallback((settingStatus: boolean) => {
     if (settingStatus) {
       trackingEventWrapper({
         ...siteTrackingData,
@@ -232,7 +120,18 @@ const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPage> = ({ tt, han
       });
       exitOnboardingModule();
     }
-  };
+  }, [isGeneralOnboarding, siteTrackingData]);
+
+  // Event listeners setup
+  useEffect(() => {
+    window.addEventListener('policy_corres_mgmt_mfe:checkbox_edocs', handleCheckboxEdocsEvent);
+    window.addEventListener('policy_corres_mgmt_mfe:save_edocs', handleSaveEdocsEvent);
+    
+    return () => {
+      window.removeEventListener('policy_corres_mgmt_mfe:checkbox_edocs', handleCheckboxEdocsEvent);
+      window.removeEventListener('policy_corres_mgmt_mfe:save_edocs', handleSaveEdocsEvent);
+    };
+  }, [handleCheckboxEdocsEvent, handleSaveEdocsEvent]);
 
   return (
     <div data-testid="general-digital-setup-page" className="flex flex-col gap-8 pt-4 pr-4 sm:pt-0">
@@ -250,40 +149,50 @@ const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPage> = ({ tt, han
         </p>
       </div>
 
-      <DownloadAppSection />
+      <Suspense fallback={<div>Loading app section...</div>}>
+        <DownloadAppSection />
+      </Suspense>
 
-      <EDocsSection
-        brand={brand}
-        partyId={partyId}
-        primaryEmail={primaryEmail}
-        eDocsStatus={eDocsUpdated}
-        handleSettingLink={handleSetting}
-        setIsEDocsRequestComplete={setIsEDocsRequestComplete}
-        setIsResponseLoading={setIsResponseLoading}
-      />
+      <Suspense fallback={<div>Loading EDocs section...</div>}>
+        <EDocsSection
+          brand={brand}
+          partyId={partyId}
+          primaryEmail={primaryEmail}
+          eDocsStatus={eDocsUpdated}
+          handleSettingLink={handleSetting}
+          setIsEDocsRequestComplete={setIsEDocsRequestComplete}
+          setIsResponseLoading={setIsResponseLoading}
+        />
+      </Suspense>
 
       <div className="flex flex-col flex-wrap gap-8 sm:flex-row">
-        {!isResponseLoading ? (
-          <Button data-testid="continue-setup-button" variant="primary" className="mt-3 ml-6" onClick={handleSave}>
-            {eDocsUpdated
-              ? `${tt('onboardingModule.page2Common.buttonContinue')}`
-              : `${tt('onboardingModule.page2Common.buttonSaveAndContinue')}`}
-          </Button>
-        ) : (
-          <Button variant="primary" id="buttonLoader" className="mt-3 ml-6">
-            <Spinner
-              id="loading-spinner"
-              data-testid="test-loading-spinner"
-              variant="inverse"
-              className="mr-3"
-              width="28"
-            />
-            {tt('onboardingModule.page2Common.buttonSaving')}
-          </Button>
-        )}
+        <Button 
+          data-testid="continue-setup-button" 
+          variant="primary" 
+          className="mt-3 ml-6"
+          onClick={handleSave}
+          disabled={isResponseLoading}
+        >
+          {isResponseLoading ? (
+            <>
+              <Spinner
+                id="loading-spinner"
+                data-testid="test-loading-spinner"
+                variant="inverse"
+                className="mr-3"
+                width="28"
+              />
+              {tt('onboardingModule.page2Common.buttonSaving')}
+            </>
+          ) : (
+            eDocsUpdated
+              ? tt('onboardingModule.page2Common.buttonContinue')
+              : tt('onboardingModule.page2Common.buttonSaveAndContinue')
+          )}
+        </Button>
       </div>
     </div>
   );
 };
 
-export default connectIagBrand()(DigitalSetupPage);
+export default React.memo(connectIagBrand()(DigitalSetupPage));
