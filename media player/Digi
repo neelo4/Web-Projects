@@ -4,7 +4,7 @@ import { Button } from '@iag/chroma-react-ui.button';
 import { Spinner } from '@iag/chroma-react-ui.spinner';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppContext } from '../../../AppContext';
+import { AppContext, AppState } from '../../../AppContext';
 import { getBrand } from '../../../brand';
 import { DOOTB_GOB_STEPS, DOOTB_ONBOARDING_TYPE } from '../../../components/shared/Constants';
 import { Brand } from '../../../models/Brand';
@@ -29,7 +29,7 @@ type DigitalSetupPage = {
 };
 
 const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPage> = ({ tt, handleSubmit }) => {
-  const { appState } = useContext(AppContext);
+  const { appState, setAppState } = useContext(AppContext);
   const onboardingType = appState?.onboardingAndEdocsResult?.onboardingType;
   const eDocsUpdated = appState?.onboardingAndEdocsResult?.eDocsStatus;
 
@@ -37,20 +37,18 @@ const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPage> = ({ tt, han
   const partyId = getPartyId();
   const primaryEmail = appState?.email;
 
-  const [isResponseLoading, setIsResponseLoading] = useState<boolean>(false);
-  const [isFormStarted, setIsFormStarted] = useState(false);
   const [isEDocsConsentChecked, setIsEDocsConsentChecked] = useState<boolean>(true);
   const [isEDocsRequestComplete, setIsEDocsRequestComplete] = useState<boolean>(false);
+  const [isResponseLoading, setIsResponseLoading] = useState<boolean>(false);
 
   const navigate = useNavigate();
   const trackingEventContext = useContext(SiteTrackingContext);
+  const [isFormStarted, setIsFormStarted] = useState(false);
   const globalEventsContext = useContext(GlobalEventsContext);
-  
   const siteTrackingData = {
     pageName: PageName.ONBOARDING_SETUP,
     globalEventsContext,
   };
-
   const isGeneralOnboarding = onboardingType === DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING;
   const isMigrationOnboarding = onboardingType === DOOTB_ONBOARDING_TYPE.MIGRATION_ONBOARDING;
 
@@ -63,9 +61,85 @@ const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPage> = ({ tt, han
         transactionActivities: isGeneralOnboarding ? Activities.GENERAL_ONBOARDING : Activities.MIGRATION_ONBOARDING,
       },
     });
+    const handleCheckboxEdocsEvent = (e: CustomEvent<{ status: boolean }>) => {
+      if (!isFormStarted) {
+        setIsFormStarted(true);
+      }
+      setIsEDocsConsentChecked(e.detail.status);
+    };
+    window.addEventListener('policy_corres_mgmt_mfe:checkbox_edocs', handleCheckboxEdocsEvent);
+    return () => {
+      window.removeEventListener('policy_corres_mgmt_mfe:checkbox_edocs', handleCheckboxEdocsEvent);
+    };
   }, []);
 
-  const handleTrackingEvents = () => {
+  const handleSaveEdocsEvent = (e: CustomEvent<{ status: boolean; loadingStatus: boolean }>) => {
+    const responseStatus = e.detail.status;
+    if (responseStatus !== undefined) {
+      setIsResponseLoading(e.detail.loadingStatus);
+      setIsEDocsRequestComplete(!e.detail.loadingStatus && (responseStatus === true || responseStatus === false));
+      setAppState(
+        (prevState: AppState): AppState => ({
+          ...prevState,
+          onboardingAndEdocsResult: {
+            ...prevState.onboardingAndEdocsResult,
+            eDocsResponseStatus: e.detail.status,
+          },
+        }),
+      );
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener('policy_corres_mgmt_mfe:save_edocs', handleSaveEdocsEvent);
+    return () => {
+      window.removeEventListener('policy_corres_mgmt_mfe:save_edocs', handleSaveEdocsEvent);
+    };
+  }, []);
+
+  const callNextSteps = useMemo(() => {
+    if (isEDocsRequestComplete) {
+      if (isGeneralOnboarding) {
+        if (isFormStarted) {
+          trackingEventContext.dispatch({
+            pageName: PageName.ONBOARDING_SETUP,
+            interaction: Interaction.COMPLETE,
+            data: {
+              transactionType: TransactionType.DOOTB_ONBOARDING,
+              transactionActivities: Activities.GENERAL_ONBOARDING,
+            },
+            element: {
+              type: ElementType.FORM,
+              name: ActionName.GENERAL_ONBOARDING,
+            },
+          });
+          setIsFormStarted(false);
+        }
+        handleSubmit(DOOTB_GOB_STEPS.NEXT_BEST_ACTION_PAGE);
+      } else if (isMigrationOnboarding) {
+        if (isFormStarted) {
+          trackingEventContext.dispatch({
+            pageName: PageName.ONBOARDING_SETUP,
+            interaction: Interaction.COMPLETE,
+            data: {
+              transactionComplete: true,
+              transactionType: TransactionType.DOOTB_ONBOARDING,
+              transactionActivities: Activities.MIGRATION_ONBOARDING,
+            },
+            element: {
+              type: ElementType.FORM,
+              name: ActionName.MIGRATION_ONBOARDING,
+            },
+          });
+          setIsFormStarted(false);
+        }
+        exitOnboardingModule();
+        navigate('/');
+      }
+    }
+  }, [isEDocsRequestComplete]);
+
+  const handleSave = () => {
     if (isGeneralOnboarding) {
       trackingEventWrapper({
         ...siteTrackingData,
@@ -96,60 +170,47 @@ const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPage> = ({ tt, han
         },
       });
     }
-  };
 
-  const completeOnboarding = () => {
-    if (isGeneralOnboarding) {
-      if (isFormStarted) {
-        trackingEventContext.dispatch({
-          pageName: PageName.ONBOARDING_SETUP,
-          interaction: Interaction.COMPLETE,
-          data: {
-            transactionType: TransactionType.DOOTB_ONBOARDING,
-            transactionActivities: Activities.GENERAL_ONBOARDING,
-          },
-          element: {
-            type: ElementType.FORM,
-            name: ActionName.GENERAL_ONBOARDING,
-          },
-        });
-        setIsFormStarted(false);
+    if (!isEDocsConsentChecked || eDocsUpdated) {
+      if (isGeneralOnboarding) {
+        if (isFormStarted) {
+          trackingEventContext.dispatch({
+            pageName: PageName.ONBOARDING_SETUP,
+            interaction: Interaction.COMPLETE,
+            data: {
+              transactionType: TransactionType.DOOTB_ONBOARDING,
+              transactionActivities: Activities.GENERAL_ONBOARDING,
+            },
+            element: {
+              type: ElementType.FORM,
+              name: ActionName.GENERAL_ONBOARDING,
+            },
+          });
+          setIsFormStarted(false);
+        }
+        handleSubmit(DOOTB_GOB_STEPS.NEXT_BEST_ACTION_PAGE);
+      } else if (isMigrationOnboarding) {
+        if (isFormStarted) {
+          trackingEventWrapper({
+            ...siteTrackingData,
+            details: {
+              interaction: Interaction.COMPLETE,
+              transactionType: TransactionType.DOOTB_ONBOARDING,
+              transactionActivities: Activities.MIGRATION_ONBOARDING,
+              element: {
+                type: ElementType.FORM,
+                name: ActionName.MIGRATION_ONBOARDING,
+              },
+            },
+          });
+          setIsFormStarted(false);
+        }
+        exitOnboardingModule();
+        navigate('/');
       }
-      handleSubmit?.(DOOTB_GOB_STEPS.NEXT_BEST_ACTION_PAGE);
-    } else if (isMigrationOnboarding) {
-      if (isFormStarted) {
-        trackingEventContext.dispatch({
-          pageName: PageName.ONBOARDING_SETUP,
-          interaction: Interaction.COMPLETE,
-          data: {
-            transactionComplete: true,
-            transactionType: TransactionType.DOOTB_ONBOARDING,
-            transactionActivities: Activities.MIGRATION_ONBOARDING,
-          },
-          element: {
-            type: ElementType.FORM,
-            name: ActionName.MIGRATION_ONBOARDING,
-          },
-        });
-        setIsFormStarted(false);
-      }
-      exitOnboardingModule();
-      navigate('/');
-    }
-  };
-
-  const handleSave = () => {
-    handleTrackingEvents();
-
-    if (eDocsUpdated) {
-      // If eDocs is already updated, proceed with completion
-      completeOnboarding();
-    } else if (!isEDocsConsentChecked) {
-      // If user hasn't checked eDocs consent, proceed with completion
-      completeOnboarding();
     } else {
-      // If eDocs consent is checked but not yet updated, trigger save
       triggerOnboardingSaveEDocsEvent(true);
+      callNextSteps;
     }
   };
 
@@ -172,13 +233,6 @@ const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPage> = ({ tt, han
       exitOnboardingModule();
     }
   };
-
-  // Handle eDocs completion
-  useEffect(() => {
-    if (isEDocsRequestComplete) {
-      completeOnboarding();
-    }
-  }, [isEDocsRequestComplete]);
 
   return (
     <div data-testid="general-digital-setup-page" className="flex flex-col gap-8 pt-4 pr-4 sm:pt-0">
@@ -204,20 +258,16 @@ const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPage> = ({ tt, han
         primaryEmail={primaryEmail}
         eDocsStatus={eDocsUpdated}
         handleSettingLink={handleSetting}
-        setIsResponseLoading={setIsResponseLoading}
-        onSaveComplete={completeOnboarding}
-        setIsFormStarted={setIsFormStarted}
-        isFormStarted={isFormStarted}
-        setIsEDocsConsentChecked={setIsEDocsConsentChecked}
         setIsEDocsRequestComplete={setIsEDocsRequestComplete}
+        setIsResponseLoading={setIsResponseLoading}
       />
 
       <div className="flex flex-col flex-wrap gap-8 sm:flex-row">
         {!isResponseLoading ? (
           <Button data-testid="continue-setup-button" variant="primary" className="mt-3 ml-6" onClick={handleSave}>
             {eDocsUpdated
-              ? tt('onboardingModule.page2Common.buttonContinue')
-              : tt('onboardingModule.page2Common.buttonSaveAndContinue')}
+              ? `${tt('onboardingModule.page2Common.buttonContinue')}`
+              : `${tt('onboardingModule.page2Common.buttonSaveAndContinue')}`}
           </Button>
         ) : (
           <Button variant="primary" id="buttonLoader" className="mt-3 ml-6">
