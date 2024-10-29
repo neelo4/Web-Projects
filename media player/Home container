@@ -1,39 +1,60 @@
-import { ApolloProvider, ApolloClient, InMemoryCache } from '@apollo/client'; // Add this import
+import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
+import React, { createContext, useContext } from 'react';
+import { AppContext } from '../AppContext';
+import DashboardLoader from '../components/dashboard/DashboardLoader';
+import TechnicalError from '../components/shared/TechnicalError';
+import { withDataLoad } from '../hoc/withDataLoad';
 
-// Add this before the tests
-const mockClient = new ApolloClient({
-  cache: new InMemoryCache(),
-  defaultOptions: {
-    watchQuery: {
-      fetchPolicy: 'no-cache',
-      errorPolicy: 'all',
-    },
-    query: {
-      fetchPolicy: 'no-cache',
-      errorPolicy: 'all',
-    },
+import useAuth from '@iag/identity/useAuth';
+import StandardLoader from '../components/shared/StandardLoader';
+import useDashboardDetails from '../hooks/api/useDashboardDetails';
+import { useGetOnboardingAndEdocsDetails } from '../hooks/api/useGetOnboardingAndEdocsDetails';
+import useBrowserDetect from '../hooks/useBrowserDetect';
+import { HomeDetails } from '../models/HomeDetails';
+import { OnboardingAndEdocsStatus } from '../models/OnboardingModule';
+import { showDootbOnboardingModule } from '../utils/onboardingModuleUtils';
+import Home from './Home';
+import OnboardingModule from './OnboardingModulePages/OnboardingModule';
+
+export const HomeDetailsContext = createContext<HomeDetails>(undefined);
+export const OnboardingAndEdocsContext = createContext<OnboardingAndEdocsStatus>(undefined);
+
+export const HomeContainer: React.FC<BrandDataProps> = () => {
+  const { appState } = useContext(AppContext);
+  const { isAuthenticated } = useAuth();
+  const { isMobileApp } = useBrowserDetect();
+
+  const isShowDootbOnboardingModule = showDootbOnboardingModule(isMobileApp, isAuthenticated, appState);
+
+  if (!appState?.isOnboardingAndEdocsCallCompleted) {
+    return <StandardLoader />;
+  }
+
+  if (isShowDootbOnboardingModule && !!HomeDetailsContext) {
+    return <OnboardingModule data-testid="onboarding-module" />;
+  }
+
+  return <Home />;
+};
+
+export default withDataLoad(
+  useDashboardDetails,
+  HomeDetailsContext,
+  () => null,
+  () => null,
+  {
+    Loader: DashboardLoader,
+    Error: TechnicalError,
   },
-});
-
-// Update the test case
-test('renders success state- showing onboarding module', () => {
-  useHomeDetailsMock.mockReturnValueOnce({
-    loading: false,
-    hasAuthenticationError: false,
-    data: userData,
-  });
-  
-  (showDootOnboardingModule as jest.Mock).mockReturnValue(true);
-  
-  render(
-    <ApolloProvider client={mockClient}>
-      <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
-        <HomeDetailsContext.Provider value={userData}>
-          <HomeContainer />
-        </HomeDetailsContext.Provider>
-      </SiteTrackingContext.Provider>
-    </ApolloProvider>
-  );
-  
-  expect(screen.getByTestId('onboarding-module-page-greeting')).toBeInTheDocument();
-});
+)(
+  withDataLoad(
+    useGetOnboardingAndEdocsDetails,
+    OnboardingAndEdocsContext,
+    () => null,
+    () => null,
+    {
+      Loader: DashboardLoader,
+      Error: TechnicalError,
+    },
+  )(connectIagBrand()(HomeContainer)),
+);
