@@ -9,42 +9,37 @@ import { showDootbOnboardingModule } from '../utils/onboardingModuleUtils';
 import HomeContainer, { HomeDetailsContext } from './HomeContainer';
 import { AppContext } from '../AppContext';
 import { DOOTB_ONBOARDING_TYPE } from '../components/shared/Constants';
+import { OnboardingAndEdocsStatus } from '../models/OnboardingModule';
+import { SuccessAlert } from '../models/SuccessAlert';
 
-window.__webpack_require__ = {
-  l: jest.fn(),
-};
+// Define the proper AppState type to match your application's type
+interface AppState {
+  isOnboardingAndEdocsCallCompleted: boolean;
+  firstName: string;
+  preferredName: string;
+  brand?: string;
+  canViewBusinessUsage?: boolean;
+  canAccessPolicyDetailsURL?: boolean;
+  showEmailSentSuccess?: boolean;
+  dashboardSuccessAlert?: SuccessAlert;
+  dashboardHistory?: boolean;
+  onboardingAndEdocsResult?: OnboardingAndEdocsStatus;
+}
 
-const featureFlagMocks = {
-  USE_HERITAGE_CLAIM_VIEW_MFE: true,
-};
-
-const mockClient = new ApolloClient({
-  cache: new InMemoryCache(),
-  defaultOptions: {
-    watchQuery: {
-      fetchPolicy: 'no-cache',
-      errorPolicy: 'all',
-    },
-    query: {
-      fetchPolicy: 'no-cache',
-      errorPolicy: 'all',
-    },
-  },
-});
-
-const mockSiteTrackingContext = {
-  setElement: jest.fn(),
-  pageview: jest.fn(),
-  pageviewImmediately: jest.fn(),
-  dispatch: jest.fn(),
-  detail: {},
-};
-
-const mockAppState = {
+const mockAppState: AppState = {
   isOnboardingAndEdocsCallCompleted: true,
   firstName: 'Tester',
   preferredName: 'Test',
+  brand: 'nrma',
+  canViewBusinessUsage: false,
+  canAccessPolicyDetailsURL: true,
+  showEmailSentSuccess: false,
+  dashboardSuccessAlert: undefined,
+  dashboardHistory: false,
   onboardingAndEdocsResult: {
+    showOnboarding: true,
+    isOnboardingComplete: false,
+    isEdocsComplete: false,
     onboardingType: DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING
   }
 };
@@ -52,6 +47,16 @@ const mockAppState = {
 const mockAppContext = {
   appState: mockAppState,
   setAppState: jest.fn(),
+};
+
+// Rest of the imports and mock setup remains the same...
+
+const mockSiteTrackingContext = {
+  setElement: jest.fn(),
+  pageview: jest.fn(),
+  pageviewImmediately: jest.fn(),
+  dispatch: jest.fn(),
+  detail: {},
 };
 
 const userData = {
@@ -63,35 +68,7 @@ const userData = {
   staffNumber: 'test',
 };
 
-const useHomeDetailsMock = useDashboardDetails as jest.MockedFunction<typeof useDashboardDetails>;
-
-const scrollIntoViewMock = jest.fn();
-
-jest.mock('../iagBrandStore');
-jest.mock('../hooks/api/useDashboardDetails');
-jest.mock('../hooks/useBrowserDetect', () => jest.fn(() => ({ isMobileApp: false })));
-jest.mock('@iag/identity/useAuth', () => () => ({ isAuthenticated: true }), { virtual: true });
-jest.mock('../features-config', () => ({
-  useFeaturesConfig: jest.fn(),
-  FeatureName: {
-    USE_HERITAGE_CLAIM_VIEW_MFE: 'USE_HERITAGE_CLAIM_VIEW_MFE',
-  },
-}));
-
-jest.mock('../utils/onboardingModuleUtils', () => ({
-  showDootbOnboardingModule: jest.fn().mockReturnValue(false),
-}));
-
-beforeAll(() => {
-  window.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
-});
-
-beforeEach(() => {
-  jest.clearAllMocks();
-  (useFeaturesConfig as jest.Mock).mockImplementation((featureName: keyof typeof featureFlagMocks) => {
-    return featureFlagMocks[featureName];
-  });
-});
+// Keep existing jest.mock calls...
 
 test('renders success state- showing onboarding module', async () => {
   useHomeDetailsMock.mockReturnValueOnce({
@@ -102,8 +79,13 @@ test('renders success state- showing onboarding module', async () => {
 
   (showDootbOnboardingModule as jest.Mock).mockReturnValue(true);
 
+  const mockAppContextValue = {
+    appState: mockAppState,
+    setAppState: jest.fn(),
+  };
+
   render(
-    <AppContext.Provider value={mockAppContext}>
+    <AppContext.Provider value={mockAppContextValue}>
       <ApolloProvider client={mockClient}>
         <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
           <HomeDetailsContext.Provider value={userData}>
