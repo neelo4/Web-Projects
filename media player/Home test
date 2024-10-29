@@ -1,11 +1,11 @@
-test('renders success state- showing onboarding module', async () => {
+test('renders StandardLoader when onboarding and edocs call is not completed', () => {
   useHomeDetailsMock.mockReturnValueOnce({
     loading: false,
     hasAuthenticationError: false,
     data: userData,
   });
 
-  (showDootbOnboardingModule as jest.Mock).mockReturnValue(true);
+  (showDootbOnboardingModule as jest.Mock).mockReturnValue(false);
 
   render(
     <AppContext.Provider 
@@ -13,9 +13,13 @@ test('renders success state- showing onboarding module', async () => {
         appState: {
           firstName: 'Tester',
           preferredName: '',
-          isOnboardingAndEdocsCallCompleted: true,
+          isOnboardingAndEdocsCallCompleted: false,  // Key condition
           onboardingAndEdocsResult: {
-            onboardingType: 'GENERAL_ONBOARDING'
+            showOnboarding: true,
+            isOnboardingComplete: false,
+            isEdocsComplete: false,
+            onboardingType: DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING,
+            isOnboardingAndEdocsCallCompleted: true
           }
         },
         setAppState: jest.fn()
@@ -31,6 +35,87 @@ test('renders success state- showing onboarding module', async () => {
     </AppContext.Provider>
   );
 
-  const greeting = screen.getByTestId('onboarding-module-page-greeting');
-  expect(greeting).toBeInTheDocument();
+  expect(screen.getByTestId('StandardLoader')).toBeInTheDocument();
+});
+
+test('renders Home when HomeDetailsContext exists and showDootbOnboardingModule is false', () => {
+  useHomeDetailsMock.mockReturnValueOnce({
+    loading: false,
+    hasAuthenticationError: false,
+    data: userData,
+  });
+
+  (showDootbOnboardingModule as jest.Mock).mockReturnValue(false);
+
+  render(
+    <AppContext.Provider 
+      value={{
+        appState: {
+          firstName: 'Tester',
+          preferredName: '',
+          isOnboardingAndEdocsCallCompleted: true,
+          onboardingAndEdocsResult: {
+            showOnboarding: false,  // Key difference
+            isOnboardingComplete: true,
+            isEdocsComplete: true,
+            onboardingType: DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING,
+            isOnboardingAndEdocsCallCompleted: true
+          }
+        },
+        setAppState: jest.fn()
+      }}
+    >
+      <ApolloProvider client={mockClient}>
+        <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
+          <HomeDetailsContext.Provider value={userData}>
+            <HomeContainer />
+          </HomeDetailsContext.Provider>
+        </SiteTrackingContext.Provider>
+      </ApolloProvider>
+    </AppContext.Provider>
+  );
+
+  expect(screen.getByTestId('home')).toBeInTheDocument();
+});
+
+test('renders Home when HomeDetailsContext exists and isShowDootbOnboardingModule is false', () => {
+  useHomeDetailsMock.mockReturnValueOnce({
+    loading: false,
+    hasAuthenticationError: false,
+    data: userData,
+  });
+
+  (showDootbOnboardingModule as jest.Mock).mockReturnValue(false);
+  const isMobileApp = false;
+  const isAuthenticated = true;
+
+  render(
+    <AppContext.Provider 
+      value={{
+        appState: {
+          firstName: 'Tester',
+          preferredName: '',
+          isOnboardingAndEdocsCallCompleted: true,
+          onboardingAndEdocsResult: {
+            showOnboarding: true,
+            isOnboardingComplete: false,
+            isEdocsComplete: false,
+            onboardingType: DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING,
+            isOnboardingAndEdocsCallCompleted: true
+          }
+        },
+        setAppState: jest.fn()
+      }}
+    >
+      <ApolloProvider client={mockClient}>
+        <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
+          <HomeDetailsContext.Provider value={userData}>
+            <HomeContainer />
+          </HomeDetailsContext.Provider>
+        </SiteTrackingContext.Provider>
+      </ApolloProvider>
+    </AppContext.Provider>
+  );
+
+  expect(screen.getByTestId('home')).toBeInTheDocument();
 });
