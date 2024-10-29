@@ -1,0 +1,93 @@
+import { screen } from '@testing-library/react';
+import * as React from 'react';
+import { useLocation } from 'react-router-dom';
+import { render } from '../../../test-utils/renderWithProviders';
+import { AppContext } from '../../AppContext';
+import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
+import OnboardingModule from './OnboardingModule';
+
+const mockSiteTrackingContext = {
+  setElement: jest.fn(),
+  pageview: jest.fn(),
+  pageviewImmediately: jest.fn(),
+  dispatch: jest.fn(),
+  detail: {},
+};
+
+jest.mock('react-router-dom', () => {
+  return {
+    ...jest.requireActual('react-router-dom'),
+    useNavigate: jest.fn(),
+    useLocation: jest.fn(),
+  };
+});
+
+const mockAppState = {
+  appState: {},
+  setAppState: jest.fn(),
+};
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  (useLocation as jest.Mock).mockReturnValue({ hash: '' });
+});
+
+describe('Test onboarding component', () => {
+  test('Test for Sitetracking', () => {
+    let pageviewImmediatelySPY: jest.SpyInstance;
+    pageviewImmediatelySPY = jest.spyOn(mockSiteTrackingContext, 'pageviewImmediately');
+
+    render(
+      <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
+        <OnboardingModule />
+      </SiteTrackingContext.Provider>,
+    );
+    expect(mockSiteTrackingContext.pageviewImmediately).toHaveBeenCalledWith('onboarding');
+  });
+
+  test('renders General Onboarding when onboardingType is GOB', () => {
+    render(
+      <AppContext.Provider
+        value={{
+          ...mockAppState,
+          appState: {
+            ...mockAppState.appState,
+            onboardingAndEdocsResult: {
+              showOnboarding: true,
+              onboardingType: 'GOB',
+              showEdocsModal: false,
+              eDocsStatus: true,
+            },
+          },
+        }}
+      >
+        <OnboardingModule />
+      </AppContext.Provider>,
+      { bare: true },
+    );
+    expect(screen.getByTestId('general-onboarding-welcome-page')).toBeInTheDocument();
+  });
+
+  test('renders Migration Onboarding when onboardingType is MOB', () => {
+    render(
+      <AppContext.Provider
+        value={{
+          ...mockAppState,
+          appState: {
+            ...mockAppState.appState,
+            onboardingAndEdocsResult: {
+              showOnboarding: true,
+              onboardingType: 'MOB',
+              showEdocsModal: false,
+              eDocsStatus: true,
+            },
+          },
+        }}
+      >
+        <OnboardingModule />
+      </AppContext.Provider>,
+      { bare: true },
+    );
+    expect(screen.getByTestId('migration-onboarding-welcome-page')).toBeInTheDocument();
+  });
+});
