@@ -4,23 +4,11 @@ import { useLocation } from 'react-router-dom';
 import { render } from '../../../test-utils/renderWithProviders';
 import { AppContext } from '../../AppContext';
 import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
-import OnboardingModule from './OnboardingModule';
+import OnboardingHeader from './OnboardingHeader';
+import { DOOTB_ONBOARDING_TYPE } from '../../components/shared/Constants';
 
-const mockSiteTrackingContext = {
-  setElement: jest.fn(),
-  pageview: jest.fn(),
-  pageviewImmediately: jest.fn(),
-  dispatch: jest.fn(),
-  detail: {},
-};
-
-jest.mock('react-router-dom', () => {
-  return {
-    ...jest.requireActual('react-router-dom'),
-    useNavigate: jest.fn(),
-    useLocation: jest.fn(),
-  };
-});
+// Mock the SVG import
+jest.mock('../../assets/images/onboardingHomeCheckImg.svg', () => 'mocked-image.svg');
 
 const mockAppState = {
   appState: {},
@@ -29,65 +17,135 @@ const mockAppState = {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  (useLocation as jest.Mock).mockReturnValue({ hash: '' });
 });
 
-describe('Test onboarding component', () => {
-  test('Test for Sitetracking', () => {
-    let pageviewImmediatelySPY: jest.SpyInstance;
-    pageviewImmediatelySPY = jest.spyOn(mockSiteTrackingContext, 'pageviewImmediately');
-
+describe('Test OnboardingHeader component', () => {
+  test('renders header without greeting when firstName is not present', () => {
     render(
-      <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
-        <OnboardingModule />
-      </SiteTrackingContext.Provider>,
+      <AppContext.Provider value={mockAppState}>
+        <OnboardingHeader tt={(key) => key} />
+      </AppContext.Provider>,
+      { bare: true },
     );
-    expect(mockSiteTrackingContext.pageviewImmediately).toHaveBeenCalledWith('onboarding');
+    
+    expect(screen.queryByTestId('onboarding-module-page-greeting')).not.toBeInTheDocument();
+    expect(screen.getByTestId('onboarding-module-page-greeting-message')).toBeInTheDocument();
   });
 
-  test('renders General Onboarding when onboardingType is GOB', () => {
+  test('renders header with firstName when preferredName is empty', () => {
     render(
       <AppContext.Provider
         value={{
           ...mockAppState,
           appState: {
-            ...mockAppState.appState,
-            onboardingAndEdocsResult: {
-              showOnboarding: true,
-              onboardingType: 'GOB',
-              showEdocsModal: false,
-              eDocsStatus: true,
-            },
+            firstName: 'John',
+            preferredName: '',
           },
         }}
       >
-        <OnboardingModule />
+        <OnboardingHeader tt={(key) => key} />
       </AppContext.Provider>,
       { bare: true },
     );
-    expect(screen.getByTestId('general-onboarding-welcome-page')).toBeInTheDocument();
+    
+    const greeting = screen.getByTestId('onboarding-module-page-greeting');
+    expect(greeting).toHaveTextContent('pages.home.greetingJohn');
   });
 
-  test('renders Migration Onboarding when onboardingType is MOB', () => {
+  test('renders header with preferredName when available', () => {
     render(
       <AppContext.Provider
         value={{
           ...mockAppState,
           appState: {
-            ...mockAppState.appState,
+            firstName: 'John',
+            preferredName: 'Johnny',
+          },
+        }}
+      >
+        <OnboardingHeader tt={(key) => key} />
+      </AppContext.Provider>,
+      { bare: true },
+    );
+    
+    const greeting = screen.getByTestId('onboarding-module-page-greeting');
+    expect(greeting).toHaveTextContent('pages.home.greetingJohnny');
+  });
+
+  test('renders general onboarding message when onboardingType is GOB', () => {
+    render(
+      <AppContext.Provider
+        value={{
+          ...mockAppState,
+          appState: {
             onboardingAndEdocsResult: {
-              showOnboarding: true,
-              onboardingType: 'MOB',
-              showEdocsModal: false,
-              eDocsStatus: true,
+              onboardingType: DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING,
             },
           },
         }}
       >
-        <OnboardingModule />
+        <OnboardingHeader tt={(key) => key} />
       </AppContext.Provider>,
       { bare: true },
     );
-    expect(screen.getByTestId('migration-onboarding-welcome-page')).toBeInTheDocument();
+    
+    const message = screen.getByTestId('onboarding-module-page-greeting-message');
+    expect(message).toHaveTextContent('onboardingModule.generalOnboarding.greetingMessage');
+  });
+
+  test('renders migration onboarding message when onboardingType is MOB', () => {
+    render(
+      <AppContext.Provider
+        value={{
+          ...mockAppState,
+          appState: {
+            onboardingAndEdocsResult: {
+              onboardingType: DOOTB_ONBOARDING_TYPE.MIGRATION_ONBOARDING,
+            },
+          },
+        }}
+      >
+        <OnboardingHeader tt={(key) => key} />
+      </AppContext.Provider>,
+      { bare: true },
+    );
+    
+    const message = screen.getByTestId('onboarding-module-page-greeting-message');
+    expect(message).toHaveTextContent('onboardingModule.migrationOnboarding.greetingMessage');
+  });
+
+  test('renders empty message when onboardingType is unknown', () => {
+    render(
+      <AppContext.Provider
+        value={{
+          ...mockAppState,
+          appState: {
+            onboardingAndEdocsResult: {
+              onboardingType: 'UNKNOWN',
+            },
+          },
+        }}
+      >
+        <OnboardingHeader tt={(key) => key} />
+      </AppContext.Provider>,
+      { bare: true },
+    );
+    
+    const message = screen.getByTestId('onboarding-module-page-greeting-message');
+    expect(message).toHaveTextContent('');
+  });
+
+  test('renders onboarding image with correct attributes', () => {
+    render(
+      <AppContext.Provider value={mockAppState}>
+        <OnboardingHeader tt={(key) => key} />
+      </AppContext.Provider>,
+      { bare: true },
+    );
+    
+    const image = screen.getByAltText('onboarding-image');
+    expect(image).toBeInTheDocument();
+    expect(image).toHaveAttribute('src', 'mocked-image.svg');
+    expect(image).toHaveClass('w-[410px]', 'h-[300px]');
   });
 });
