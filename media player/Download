@@ -1,22 +1,20 @@
+import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
 import React from 'react';
+import appIcon from '../../../assets/images/app-icon.svg';
+import qrCodeImage from '../../../assets/images/NRMA-qr-code.svg';
 import {
   GOOGLE_PLAY_STORE_IMG,
   GOOGLE_PLAY_STORE_URL,
   IOS_APP_STORE_IMG,
   IOS_APP_STORE_URL,
 } from '../../../components/shared/Constants';
-import appIcon from '../../../assets/images/app-icon.svg';
-import qrCodeImage from '../../../assets/images/NRMA-qr-code.svg';
 
-interface DownloadAppSectionProps {
-  tt: (key: string) => string;
-}
-
-const DownloadAppSection: React.FC<DownloadAppSectionProps> = ({ tt }) => {
+const DownloadAppSection: React.FC<BrandDataProps> = ({ tt }) => {
   return (
     <div
       data-testid="download-app-section"
-      className="flex flex-col items-start mb-2 justify-between px-2 py-2 border border-primary-lighter sm:flex-row"
+      className={`flex flex-col items-start mb-2 justify-between px-2 py-2 border 
+        border-${tt('constants.borderColor')} sm:flex-row`}
     >
       <div className="p-4">
         <div className="flex flex-col gap-2 items-start sm:flex-row sm:gap-4 mt-1">
@@ -47,4 +45,4 @@ const DownloadAppSection: React.FC<DownloadAppSectionProps> = ({ tt }) => {
   );
 };
 
-export default DownloadAppSection;
+export default connectIagBrand()(DownloadAppSection);
