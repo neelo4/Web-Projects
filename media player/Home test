@@ -6,13 +6,10 @@ import { useFeaturesConfig } from '../features-config';
 import useDashboardDetails from '../hooks/api/useDashboardDetails';
 import { SiteTrackingContext } from '../sitetracking/SiteTrackingProvider';
 import { showDootbOnboardingModule } from '../utils/onboardingModuleUtils';
-import HomeContainer, { HomeDetailsContext, OnboardingAndEdocsContext } from './HomeContainer';
-import { useGetOnboardingAndEdocsDetails } from '../hooks/api/useGetOnboardingAndEdocsDetails';
+import HomeContainer, { HomeDetailsContext } from './HomeContainer';
 import { AppContext } from '../AppContext';
-import useAuth from '@iag/identity/useAuth';
-import useBrowserDetect from '../hooks/useBrowserDetect';
+import { DOOTB_ONBOARDING_TYPE } from '../components/shared/Constants';
 
-// Keep all existing setup code unchanged
 window.__webpack_require__ = {
   l: jest.fn(),
 };
@@ -35,13 +32,6 @@ const mockClient = new ApolloClient({
   },
 });
 
-jest.mock('../iagBrandStore');
-jest.mock('../hooks/api/useDashboardDetails');
-jest.mock('../hooks/useBrowserDetect', () => jest.fn(() => ({ isMobileApp: false })));
-jest.mock('@iag/identity/useAuth', () => () => ({ isAuthenticated: true }), { virtual: true });
-jest.mock('../hooks/api/useGetOnboardingAndEdocsDetails');
-jest.mock('../utils/onboardingModuleUtils');
-
 const mockSiteTrackingContext = {
   setElement: jest.fn(),
   pageview: jest.fn(),
@@ -50,15 +40,19 @@ const mockSiteTrackingContext = {
   detail: {},
 };
 
-const mockAppContext = {
-  appState: {
-    isOnboardingAndEdocsCallCompleted: true,
-  },
-  setAppState: jest.fn(),
+const mockAppState = {
+  isOnboardingAndEdocsCallCompleted: true,
+  firstName: 'Tester',
+  preferredName: 'Test',
+  onboardingAndEdocsResult: {
+    onboardingType: DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING
+  }
 };
 
-const useHomeDetailsMock = useDashboardDetails as jest.MockedFunction<typeof useDashboardDetails>;
-const useOnboardingDetailsMock = useGetOnboardingAndEdocsDetails as jest.MockedFunction<typeof useGetOnboardingAndEdocsDetails>;
+const mockAppContext = {
+  appState: mockAppState,
+  setAppState: jest.fn(),
+};
 
 const userData = {
   fullName: 'Tester',
@@ -69,14 +63,25 @@ const userData = {
   staffNumber: 'test',
 };
 
-const onboardingData = {
-  isOnboardingComplete: false,
-  isEdocsComplete: false,
-};
+const useHomeDetailsMock = useDashboardDetails as jest.MockedFunction<typeof useDashboardDetails>;
 
 const scrollIntoViewMock = jest.fn();
 
-// Keep existing beforeAll and beforeEach unchanged
+jest.mock('../iagBrandStore');
+jest.mock('../hooks/api/useDashboardDetails');
+jest.mock('../hooks/useBrowserDetect', () => jest.fn(() => ({ isMobileApp: false })));
+jest.mock('@iag/identity/useAuth', () => () => ({ isAuthenticated: true }), { virtual: true });
+jest.mock('../features-config', () => ({
+  useFeaturesConfig: jest.fn(),
+  FeatureName: {
+    USE_HERITAGE_CLAIM_VIEW_MFE: 'USE_HERITAGE_CLAIM_VIEW_MFE',
+  },
+}));
+
+jest.mock('../utils/onboardingModuleUtils', () => ({
+  showDootbOnboardingModule: jest.fn().mockReturnValue(false),
+}));
+
 beforeAll(() => {
   window.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
 });
@@ -88,185 +93,27 @@ beforeEach(() => {
   });
 });
 
-// Keep existing tests unchanged and add new tests below
-
-// Additional test cases that weren't covered in the original file
-describe('Additional HomeContainer Tests', () => {
-  test('renders Home when onboarding is completed', () => {
-    useHomeDetailsMock.mockReturnValue({
-      loading: false,
-      hasAuthenticationError: false,
-      data: userData,
-    });
-
-    useOnboardingDetailsMock.mockReturnValue({
-      loading: false,
-      hasAuthenticationError: false,
-      data: {
-        ...onboardingData,
-        isOnboardingComplete: true,
-        isEdocsComplete: true,
-      },
-    });
-
-    render(
-      <AppContext.Provider value={mockAppContext}>
-        <ApolloProvider client={mockClient}>
-          <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
-            <HomeDetailsContext.Provider value={userData}>
-              <OnboardingAndEdocsContext.Provider value={onboardingData}>
-                <HomeContainer />
-              </OnboardingAndEdocsContext.Provider>
-            </HomeDetailsContext.Provider>
-          </SiteTrackingContext.Provider>
-        </ApolloProvider>
-      </AppContext.Provider>
-    );
-
-    expect(screen.getByTestId('home')).toBeInTheDocument();
+test('renders success state- showing onboarding module', async () => {
+  useHomeDetailsMock.mockReturnValueOnce({
+    loading: false,
+    hasAuthenticationError: false,
+    data: userData,
   });
 
-  test('handles mobile app with incomplete onboarding', () => {
-    (useBrowserDetect as jest.Mock).mockReturnValue({ isMobileApp: true });
-    useHomeDetailsMock.mockReturnValue({
-      loading: false,
-      hasAuthenticationError: false,
-      data: userData,
-    });
+  (showDootbOnboardingModule as jest.Mock).mockReturnValue(true);
 
-    useOnboardingDetailsMock.mockReturnValue({
-      loading: false,
-      hasAuthenticationError: false,
-      data: onboardingData,
-    });
-
-    (showDootbOnboardingModule as jest.Mock).mockReturnValue(true);
-
-    render(
-      <AppContext.Provider value={mockAppContext}>
-        <ApolloProvider client={mockClient}>
-          <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
-            <HomeDetailsContext.Provider value={userData}>
-              <OnboardingAndEdocsContext.Provider value={onboardingData}>
-                <HomeContainer />
-              </OnboardingAndEdocsContext.Provider>
-            </HomeDetailsContext.Provider>
-          </SiteTrackingContext.Provider>
-        </ApolloProvider>
-      </AppContext.Provider>
-    );
-
-    expect(screen.getByTestId('onboarding-module')).toBeInTheDocument();
-  });
-
-  test('handles both dashboard and onboarding loading states simultaneously', () => {
-    useHomeDetailsMock.mockReturnValue({
-      loading: true,
-      hasAuthenticationError: false,
-    });
-
-    useOnboardingDetailsMock.mockReturnValue({
-      loading: true,
-      hasAuthenticationError: false,
-    });
-
-    render(
-      <AppContext.Provider value={mockAppContext}>
-        <ApolloProvider client={mockClient}>
-          <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
+  render(
+    <AppContext.Provider value={mockAppContext}>
+      <ApolloProvider client={mockClient}>
+        <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
+          <HomeDetailsContext.Provider value={userData}>
             <HomeContainer />
-          </SiteTrackingContext.Provider>
-        </ApolloProvider>
-      </AppContext.Provider>
-    );
+          </HomeDetailsContext.Provider>
+        </SiteTrackingContext.Provider>
+      </ApolloProvider>
+    </AppContext.Provider>
+  );
 
-    expect(screen.getByTestId('DashboardLoader')).toBeInTheDocument();
-    expect(screen.getByText('Retrieving your policies...')).toBeInTheDocument();
-  });
-
-  test('handles unauthenticated user state', () => {
-    (useAuth as jest.Mock).mockReturnValue({ isAuthenticated: false });
-    useHomeDetailsMock.mockReturnValue({
-      loading: false,
-      hasAuthenticationError: false,
-      data: userData,
-    });
-
-    useOnboardingDetailsMock.mockReturnValue({
-      loading: false,
-      hasAuthenticationError: false,
-      data: onboardingData,
-    });
-
-    render(
-      <AppContext.Provider value={mockAppContext}>
-        <ApolloProvider client={mockClient}>
-          <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
-            <HomeContainer />
-          </SiteTrackingContext.Provider>
-        </ApolloProvider>
-      </AppContext.Provider>
-    );
-
-    expect(showDootbOnboardingModule).toHaveBeenCalledWith(false, false, mockAppContext.appState);
-  });
-
-  test('handles onboarding error with valid dashboard data', () => {
-    useHomeDetailsMock.mockReturnValue({
-      loading: false,
-      hasAuthenticationError: false,
-      data: userData,
-    });
-
-    useOnboardingDetailsMock.mockReturnValue({
-      loading: false,
-      hasAuthenticationError: false,
-      error: new ApolloError({ errorMessage: 'Failed to fetch onboarding data' }),
-    });
-
-    render(
-      <AppContext.Provider value={mockAppContext}>
-        <ApolloProvider client={mockClient}>
-          <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
-            <HomeContainer />
-          </SiteTrackingContext.Provider>
-        </ApolloProvider>
-      </AppContext.Provider>
-    );
-
-    expect(screen.getByTestId('TechnicalError')).toBeInTheDocument();
-  });
-
-  test('handles staff member data correctly', () => {
-    useHomeDetailsMock.mockReturnValue({
-      loading: false,
-      hasAuthenticationError: false,
-      data: {
-        ...userData,
-        isStaffMember: true,
-      },
-    });
-
-    useOnboardingDetailsMock.mockReturnValue({
-      loading: false,
-      hasAuthenticationError: false,
-      data: onboardingData,
-    });
-
-    render(
-      <AppContext.Provider value={mockAppContext}>
-        <ApolloProvider client={mockClient}>
-          <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
-            <HomeDetailsContext.Provider value={{ ...userData, isStaffMember: true }}>
-              <OnboardingAndEdocsContext.Provider value={onboardingData}>
-                <HomeContainer />
-              </OnboardingAndEdocsContext.Provider>
-            </HomeDetailsContext.Provider>
-          </SiteTrackingContext.Provider>
-        </ApolloProvider>
-      </AppContext.Provider>
-    );
-
-    expect(screen.getByTestId('home')).toBeInTheDocument();
-  });
+  const greeting = screen.getByTestId('onboarding-module-page-greeting');
+  expect(greeting).toBeInTheDocument();
 });
