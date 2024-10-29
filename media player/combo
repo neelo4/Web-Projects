@@ -3,7 +3,7 @@ import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
 import { GlobalEventsContext } from '@iag-common/mfe-global-events-context';
 import { Button } from '@iag/chroma-react-ui.button';
 import { Spinner } from '@iag/chroma-react-ui.spinner';
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../../../AppContext';
 import { getBrand } from '../../../brand';
@@ -14,6 +14,7 @@ import {
   Activities,
   ElementType,
   FormName,
+  Interaction,
   PageName,
   TransactionType,
 } from '../../../models/SiteTracking';
@@ -24,14 +25,17 @@ import { getPartyId } from '../../../utils/partyUtils';
 import DownloadAppSection from './DownloadAppSection';
 import EDocsSection from './EDocsSection';
 
-type DigitalSetupPageProps = {
+type DigitalSetupPage = {
   handleSubmit?: (stepNumber: string) => void;
 };
 
-const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPageProps> = ({ tt, handleSubmit }) => {
+const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPage> = ({ tt, handleSubmit }) => {
   const { appState } = useContext(AppContext);
   const onboardingType = appState?.onboardingAndEdocsResult?.onboardingType;
   const eDocsUpdated = appState?.onboardingAndEdocsResult?.eDocsStatus;
+
+  const brand = getBrand() as Brand;
+  const partyId = getPartyId();
   const primaryEmail = appState?.email;
 
   const [isResponseLoading, setIsResponseLoading] = useState<boolean>(false);
@@ -40,70 +44,98 @@ const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPageProps> = ({ tt
   const navigate = useNavigate();
   const trackingEventContext = useContext(SiteTrackingContext);
   const globalEventsContext = useContext(GlobalEventsContext);
-  
-  const brand = getBrand() as Brand;
-  const partyId = getPartyId();
-
-  const isGeneralOnboarding = onboardingType === DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING;
-  const isMigrationOnboarding = onboardingType === DOOTB_ONBOARDING_TYPE.MIGRATION_ONBOARDING;
-
   const siteTrackingData = {
     pageName: PageName.ONBOARDING_SETUP,
     globalEventsContext,
   };
+  const isGeneralOnboarding = onboardingType === DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING;
+  const isMigrationOnboarding = onboardingType === DOOTB_ONBOARDING_TYPE.MIGRATION_ONBOARDING;
 
-  const handleTrackingCompletion = () => {
-    if (isFormStarted) {
-      trackingEventContext.dispatch({
-        pageName: PageName.ONBOARDING_SETUP,
-        interaction: Interaction.COMPLETE,
-        data: {
-          transactionType: TransactionType.DOOTB_ONBOARDING,
-          transactionActivities: isGeneralOnboarding 
-            ? Activities.GENERAL_ONBOARDING 
-            : Activities.MIGRATION_ONBOARDING,
-          ...(isMigrationOnboarding && { transactionComplete: true }),
-        },
-        element: {
-          type: ElementType.FORM,
-          name: isGeneralOnboarding 
-            ? ActionName.GENERAL_ONBOARDING 
-            : ActionName.MIGRATION_ONBOARDING,
-        },
-      });
-      setIsFormStarted(false);
-    }
-  };
-
-  const handleSave = () => {
-    // Track save button click
-    trackingEventWrapper({
-      ...siteTrackingData,
-      details: {
-        interaction: Interaction.CLICK,
-        transactionActivities: isGeneralOnboarding 
-          ? Activities.GENERAL_ONBOARDING 
-          : Activities.MIGRATION_ONBOARDING,
-        ...(isMigrationOnboarding && { transactionComplete: true, transactionType: TransactionType.DOOTB_ONBOARDING }),
-        element: {
-          form: isGeneralOnboarding ? FormName.GENERAL_ONBOARDING : FormName.MIGRATION_ONBOARDING,
-          type: ElementType.BUTTON,
-          name: ActionName.SAVE_AND_CONTINUE,
-        },
+  useEffect(() => {
+    trackingEventContext.dispatch({
+      pageName: PageName.ONBOARDING_SETUP.toString(),
+      interaction: Interaction.PAGEVIEW,
+      data: {
+        transactionType: TransactionType.DOOTB_ONBOARDING,
+        transactionActivities: isGeneralOnboarding ? Activities.GENERAL_ONBOARDING : Activities.MIGRATION_ONBOARDING,
       },
     });
+  }, []);
 
-    handleTrackingCompletion();
-
+  const handleSave = () => {
     if (isGeneralOnboarding) {
-      handleSubmit?.(DOOTB_GOB_STEPS.NEXT_BEST_ACTION_PAGE);
-    } else if (isMigrationOnboarding) {
-      exitOnboardingModule();
-      navigate('/');
+      trackingEventWrapper({
+        ...siteTrackingData,
+        details: {
+          interaction: Interaction.CLICK,
+          transactionActivities: Activities.GENERAL_ONBOARDING,
+          element: {
+            form: FormName.GENERAL_ONBOARDING,
+            type: ElementType.BUTTON,
+            name: ActionName.SAVE_AND_CONTINUE,
+          },
+        },
+      });
+    }
+    if (isMigrationOnboarding) {
+      trackingEventWrapper({
+        ...siteTrackingData,
+        details: {
+          interaction: Interaction.CLICK,
+          transactionComplete: true,
+          transactionType: TransactionType.DOOTB_ONBOARDING,
+          transactionActivities: Activities.MIGRATION_ONBOARDING,
+          element: {
+            form: FormName.MIGRATION_ONBOARDING,
+            type: ElementType.BUTTON,
+            name: ActionName.SAVE_AND_CONTINUE,
+          },
+        },
+      });
+    }
+
+    if (eDocsUpdated) {
+      if (isGeneralOnboarding) {
+        if (isFormStarted) {
+          trackingEventContext.dispatch({
+            pageName: PageName.ONBOARDING_SETUP,
+            interaction: Interaction.COMPLETE,
+            data: {
+              transactionType: TransactionType.DOOTB_ONBOARDING,
+              transactionActivities: Activities.GENERAL_ONBOARDING,
+            },
+            element: {
+              type: ElementType.FORM,
+              name: ActionName.GENERAL_ONBOARDING,
+            },
+          });
+          setIsFormStarted(false);
+        }
+        handleSubmit(DOOTB_GOB_STEPS.NEXT_BEST_ACTION_PAGE);
+      } else if (isMigrationOnboarding) {
+        if (isFormStarted) {
+          trackingEventContext.dispatch({
+            pageName: PageName.ONBOARDING_SETUP,
+            interaction: Interaction.COMPLETE,
+            data: {
+              transactionComplete: true,
+              transactionType: TransactionType.DOOTB_ONBOARDING,
+              transactionActivities: Activities.MIGRATION_ONBOARDING,
+            },
+            element: {
+              type: ElementType.FORM,
+              name: ActionName.MIGRATION_ONBOARDING,
+            },
+          });
+          setIsFormStarted(false);
+        }
+        exitOnboardingModule();
+        navigate('/');
+      }
     }
   };
 
-  const handleSettingLink = (settingStatus: boolean) => {
+  const handleSetting = (settingStatus: boolean) => {
     if (settingStatus) {
       trackingEventWrapper({
         ...siteTrackingData,
@@ -111,9 +143,7 @@ const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPageProps> = ({ tt
           interaction: Interaction.CLICK,
           transactionComplete: true,
           transactionType: TransactionType.DOOTB_ONBOARDING,
-          transactionActivities: isGeneralOnboarding 
-            ? ActionName.GENERAL_ONBOARDING 
-            : Activities.MIGRATION_ONBOARDING,
+          transactionActivities: isGeneralOnboarding ? ActionName.GENERAL_ONBOARDING : Activities.MIGRATION_ONBOARDING,
           element: {
             form: isGeneralOnboarding ? FormName.GENERAL_ONBOARDING : FormName.MIGRATION_ONBOARDING,
             type: ElementType.LINK,
@@ -148,9 +178,9 @@ const DigitalSetupPage: React.FC<BrandDataProps & DigitalSetupPageProps> = ({ tt
         partyId={partyId}
         primaryEmail={primaryEmail}
         eDocsStatus={eDocsUpdated}
-        handleSettingLink={handleSettingLink}
+        handleSettingLink={handleSetting}
         setIsResponseLoading={setIsResponseLoading}
-        onEDocsComplete={handleSave}
+        onSaveComplete={handleSave}
         setIsFormStarted={setIsFormStarted}
       />
 
@@ -201,7 +231,7 @@ interface EdocsSectionProps {
   eDocsStatus: boolean;
   handleSettingLink: (settingStatus: boolean) => void;
   setIsResponseLoading: (status: boolean) => void;
-  onEDocsComplete: () => void;
+  onSaveComplete: () => void;
   setIsFormStarted: (status: boolean) => void;
 }
 
@@ -212,7 +242,7 @@ const EDocsSection: React.FC<BrandDataProps & EdocsSectionProps> = ({
   handleSettingLink,
   setIsResponseLoading,
   eDocsStatus,
-  onEDocsComplete,
+  onSaveComplete,
   setIsFormStarted,
 }) => {
   const { appState, setAppState } = useContext(AppContext);
@@ -231,7 +261,8 @@ const EDocsSection: React.FC<BrandDataProps & EdocsSectionProps> = ({
       const responseStatus = e.detail.status;
       if (responseStatus !== undefined) {
         setIsResponseLoading(e.detail.loadingStatus);
-        setIsEDocsRequestComplete(!e.detail.loadingStatus && (responseStatus === true || responseStatus === false));
+        const isComplete = !e.detail.loadingStatus && (responseStatus === true || responseStatus === false);
+        setIsEDocsRequestComplete(isComplete);
         
         setAppState((prevState: AppState): AppState => ({
           ...prevState,
@@ -241,8 +272,8 @@ const EDocsSection: React.FC<BrandDataProps & EdocsSectionProps> = ({
           },
         }));
 
-        if (!e.detail.loadingStatus && (responseStatus === true || responseStatus === false)) {
-          onEDocsComplete();
+        if (isComplete) {
+          onSaveComplete();
         }
       }
     };
@@ -254,13 +285,7 @@ const EDocsSection: React.FC<BrandDataProps & EdocsSectionProps> = ({
       window.removeEventListener('policy_corres_mgmt_mfe:checkbox_edocs', handleCheckboxEdocsEvent);
       window.removeEventListener('policy_corres_mgmt_mfe:save_edocs', handleSaveEdocsEvent);
     };
-  }, []);
-
-  useEffect(() => {
-    if (isEDocsRequestComplete) {
-      onEDocsComplete();
-    }
-  }, [isEDocsRequestComplete]);
+  }, [isFormStarted, onSaveComplete]);
 
   return (
     <div data-testid="switch-to-edocs-section" className="px-2 py-2 border border-primary-lighter">
