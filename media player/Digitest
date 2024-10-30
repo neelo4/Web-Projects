@@ -1,0 +1,60 @@
+import { screen } from '@testing-library/react';
+import React from 'react';
+import { render } from '../../../../test-utils/renderWithProviders';
+import DigitalSetupPage from './DigitalSetupPage';
+
+const mockNavigate = jest.fn();
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useNavigate: () => mockNavigate,
+}));
+jest.mock('../../../utils/onboardingModuleUtils', () => ({
+  exitOnboardingModule: jest.fn(),
+  triggerOnboardingSaveEDocsEvent: jest.fn(),
+}));
+
+const mockTrackingEventWrapper = jest.fn();
+jest.mock('../../../sitetracking/TrackingEventWrapper', () => ({
+  trackingEventWrapper: (...args: any) => mockTrackingEventWrapper(...args),
+}));
+
+describe('DigitalSetupPage', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('renders correctly for general onboarding', () => {
+    render(<DigitalSetupPage />);
+    const generalSetupPage = screen.queryByTestId('general-digital-setup-page');
+    const stepNumber = screen.queryByTestId('step-number');
+    const pageTitle = screen.queryByTestId('page-title');
+    const downloadAppSection = screen.queryByTestId('download-app-section');
+    const joinHelphubSection = screen.queryByTestId('join-helphub-section');
+    const switchToEdocsSection = screen.queryByTestId('switch-to-edocs-section');
+
+    if (generalSetupPage) expect(generalSetupPage).toBeInTheDocument();
+    if (stepNumber) expect(stepNumber).toBeInTheDocument();
+    if (pageTitle) expect(pageTitle).toBeInTheDocument();
+    if (downloadAppSection) expect(downloadAppSection).toBeInTheDocument();
+    if (joinHelphubSection) expect(joinHelphubSection).toBeInTheDocument();
+    if (switchToEdocsSection) expect(switchToEdocsSection).toBeInTheDocument();
+  });
+
+  test('renders correctly for migration onboarding', () => {
+    render(<DigitalSetupPage />);
+    expect(screen.queryByTestId('step-number')).not.toBeInTheDocument();
+  });
+
+  test('handles checkbox edocs event', () => {
+    render(<DigitalSetupPage />);
+    const event = new CustomEvent('policy_corres_mgmt_mfe:checkbox_edocs', { detail: { status: false } });
+    window.dispatchEvent(event);
+    expect(screen.getByTestId('continue-setup-button')).toHaveTextContent('Save and continue');
+  });
+  it('should render the loader when `isEDocsRequestComplete` is false', () => {
+    render(<DigitalSetupPage />);
+    // Loader should be present
+    expect(screen.getByTestId('general-digital-setup-page')).toBeInTheDocument();
+    expect(screen.queryByText('OnboardingEDocsConversion')).not.toBeInTheDocument();
+  });
+});
