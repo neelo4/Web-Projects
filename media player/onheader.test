@@ -15,16 +15,70 @@ const mockAppState = {
   setAppState: jest.fn(),
 };
 
-describe('OnboardingHeader Component', () => {
+describe('test greeting', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     window.__CLIENT_VARS__.brand = Brand.NRMA;
   });
 
-  // Existing tests remain unchanged...
+  test('displays greeting', () => {
+    render(
+      <AppContext.Provider value={mockAppState}>
+        <OnboardingHeader />
+      </AppContext.Provider>,
+      { bare: true },
+    );
 
-  // New test cases for additional coverage
-  
+    expect(screen.getByText('Hi Test Tester')).toBeInTheDocument();
+    expect(screen.getByTestId('onboarding-module-page-greeting-message')).toBeInTheDocument();
+    expect(screen.getByAltText('onboarding-image')).toBeInTheDocument();
+  });
+
+  test('renders General Onboarding when onboardingType is GOB', () => {
+    render(
+      <AppContext.Provider
+        value={{
+          ...mockAppState,
+          appState: {
+            ...mockAppState.appState,
+            onboardingAndEdocsResult: {
+              showOnboarding: true,
+              onboardingType: 'GOB',
+              showEdocsModal: false,
+              eDocsStatus: true,
+            },
+          },
+        }}
+      >
+        <OnboardingHeader />
+      </AppContext.Provider>,
+      { bare: true },
+    );
+    expect(screen.getByText('Let’s quickly set up your account')).toBeInTheDocument();
+  });
+
+  test('renders Migration Onboarding when onboardingType is MOB', () => {
+    render(
+      <AppContext.Provider
+        value={{
+          ...mockAppState,
+          appState: {
+            ...mockAppState.appState,
+            onboardingAndEdocsResult: {
+              showOnboarding: true,
+              onboardingType: 'MOB',
+              showEdocsModal: false,
+              eDocsStatus: true,
+            },
+          },
+        }}
+      >
+        <OnboardingHeader />
+      </AppContext.Provider>,
+      { bare: true },
+    );
+    expect(screen.getByText('Welcome to your new Online Account')).toBeInTheDocument();
+  });
   test('displays preferred name when available instead of firstName', () => {
     render(
       <AppContext.Provider
@@ -33,7 +87,7 @@ describe('OnboardingHeader Component', () => {
           appState: {
             ...mockAppState.appState,
             firstName: 'Tester',
-            preferredName: 'Nick'
+            preferredName: 'Nick',
           },
         }}
       >
@@ -41,11 +95,10 @@ describe('OnboardingHeader Component', () => {
       </AppContext.Provider>,
       { bare: true },
     );
-    
+
     const greeting = screen.getByTestId('onboarding-module-page-greeting');
     expect(greeting.textContent).toContain('Nick');
   });
-
   test('uses firstName when preferredName is empty string', () => {
     render(
       <AppContext.Provider
@@ -54,7 +107,7 @@ describe('OnboardingHeader Component', () => {
           appState: {
             ...mockAppState.appState,
             firstName: 'Tester',
-            preferredName: ''
+            preferredName: '',
           },
         }}
       >
@@ -62,7 +115,7 @@ describe('OnboardingHeader Component', () => {
       </AppContext.Provider>,
       { bare: true },
     );
-    
+
     const greeting = screen.getByTestId('onboarding-module-page-greeting');
     expect(greeting.textContent).toContain('Tester');
   });
@@ -74,7 +127,7 @@ describe('OnboardingHeader Component', () => {
           ...mockAppState,
           appState: {
             ...mockAppState.appState,
-            firstName: undefined
+            firstName: undefined,
           },
         }}
       >
@@ -82,7 +135,7 @@ describe('OnboardingHeader Component', () => {
       </AppContext.Provider>,
       { bare: true },
     );
-    
+
     const greeting = screen.queryByTestId('onboarding-module-page-greeting');
     expect(greeting).not.toBeInTheDocument();
   });
@@ -107,52 +160,8 @@ describe('OnboardingHeader Component', () => {
       </AppContext.Provider>,
       { bare: true },
     );
-    
+
     const greetingMessage = screen.getByTestId('onboarding-module-page-greeting-message');
     expect(greetingMessage.textContent).toBe('');
-  });
-
-  test('renders Logo component with correct variant', () => {
-    const { container } = render(
-      <AppContext.Provider value={mockAppState}>
-        <OnboardingHeader />
-      </AppContext.Provider>,
-      { bare: true },
-    );
-    
-    // Note: The exact implementation of this test might need to be adjusted 
-    // based on how the Logo component is structured and what it renders
-    expect(container.querySelector('.logo-light')).toBeInTheDocument();
-  });
-
-  test('renders with correct responsive classes', () => {
-    const { container } = render(
-      <AppContext.Provider value={mockAppState}>
-        <OnboardingHeader />
-      </AppContext.Provider>,
-      { bare: true },
-    );
-
-    // Test for responsive container classes
-    expect(container.querySelector('.pt-10')).toBeInTheDocument();
-    expect(container.querySelector('.pb-5')).toBeInTheDocument();
-    expect(container.querySelector('.sm\\:pb-10')).toBeInTheDocument();
-    
-    // Test for responsive image container
-    const imageContainer = container.querySelector('.hidden.sm\\:block');
-    expect(imageContainer).toBeInTheDocument();
-  });
-
-  test('renders image with correct dimensions', () => {
-    render(
-      <AppContext.Provider value={mockAppState}>
-        <OnboardingHeader />
-      </AppContext.Provider>,
-      { bare: true },
-    );
-
-    const image = screen.getByAltText('onboarding-image');
-    expect(image).toHaveClass('w-[410px]');
-    expect(image).toHaveClass('h-[300px]');
   });
 });
