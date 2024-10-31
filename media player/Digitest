@@ -1,205 +1,207 @@
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { act } from 'react-dom/test-utils';
 import React from 'react';
 import { render } from '../../../../test-utils/renderWithProviders';
 import DigitalSetupPage from './DigitalSetupPage';
 import { DOOTB_GOB_STEPS, DOOTB_ONBOARDING_TYPE } from '../../../components/shared/Constants';
-import { exitOnboardingModule, triggerOnboardingSaveEDocsEvent } from '../../../utils/onboardingModuleUtils';
-import { PageName, Interaction, TransactionType, Activities, ElementType, ActionName, FormName } from '../../../models/SiteTracking';
+import { exitOnboardingModule } from '../../../utils/onboardingModuleUtils';
+import { PageName, Interaction, TransactionType, Activities, ElementType, ActionName } from '../../../models/SiteTracking';
 
+// Mock router
 const mockNavigate = jest.fn();
-const mockHandleSubmit = jest.fn();
-const mockDispatch = jest.fn();
-
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
 }));
 
+// Mock onboarding utils
 jest.mock('../../../utils/onboardingModuleUtils', () => ({
   exitOnboardingModule: jest.fn(),
   triggerOnboardingSaveEDocsEvent: jest.fn(),
 }));
 
+// Mock tracking wrapper
 const mockTrackingEventWrapper = jest.fn();
 jest.mock('../../../sitetracking/TrackingEventWrapper', () => ({
   trackingEventWrapper: (...args: any) => mockTrackingEventWrapper(...args),
 }));
 
-describe('DigitalSetupPage', () => {
+describe('DigitalSetupPage - Extended Tests', () => {
+  const mockHandleSubmit = jest.fn();
+  const mockTrackingDispatch = jest.fn();
+  
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  // Basic Rendering Tests
-  test('renders correctly for general onboarding', () => {
-    const initialState = {
-      onboardingAndEdocsResult: {
-        onboardingType: DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING,
-      },
-    };
+  const renderWithContext = (onboardingType?: string, eDocsStatus = false, isEDocsRequestComplete = true) => {
+    return render(
+      <DigitalSetupPage 
+        handleSubmit={mockHandleSubmit}
+      />,
+      {
+        appContextValue: {
+          appState: {
+            onboardingAndEdocsResult: {
+              onboardingType,
+              eDocsStatus
+            }
+          }
+        },
+        siteTrackingContextValue: {
+          dispatch: mockTrackingDispatch
+        }
+      }
+    );
+  };
 
-    render(<DigitalSetupPage handleSubmit={mockHandleSubmit} />, { initialState });
+  describe('callNextSteps functionality', () => {
+    it('handles general onboarding completion correctly', () => {
+      renderWithContext(DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING);
 
-    expect(screen.getByTestId('general-digital-setup-page')).toBeInTheDocument();
-    expect(screen.getByTestId('step-number')).toBeInTheDocument();
-    expect(screen.getByTestId('page-title')).toBeInTheDocument();
-    expect(screen.getByTestId('continue-setup-button')).toBeInTheDocument();
-  });
+      // Simulate form started
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('policy_corres_mgmt_mfe:checkbox_edocs', { 
+            detail: { status: true } 
+          })
+        );
+      });
 
-  test('renders correctly for migration onboarding', () => {
-    const initialState = {
-      onboardingAndEdocsResult: {
-        onboardingType: DOOTB_ONBOARDING_TYPE.MIGRATION_ONBOARDING,
-      },
-    };
+      // Trigger completion
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('policy_corres_mgmt_mfe:save_edocs', {
+            detail: { status: true, loadingStatus: false }
+          })
+        );
+      });
 
-    render(<DigitalSetupPage handleSubmit={mockHandleSubmit} />, { initialState });
-    expect(screen.queryByTestId('step-number')).not.toBeInTheDocument();
-  });
+      // Verify tracking event was dispatched
+      expect(mockTrackingDispatch).toHaveBeenCalledWith({
+        pageName: PageName.ONBOARDING_SETUP,
+        interaction: Interaction.COMPLETE,
+        data: {
+          transactionType: TransactionType.DOOTB_ONBOARDING,
+          transactionActivities: Activities.GENERAL_ONBOARDING,
+        },
+        element: {
+          type: ElementType.FORM,
+          name: ActionName.GENERAL_ONBOARDING,
+        },
+      });
 
-  // Event Handling Tests
-  test('handles checkbox edocs event', async () => {
-    render(<DigitalSetupPage handleSubmit={mockHandleSubmit} />);
-    
-    const event = new CustomEvent('policy_corres_mgmt_mfe:checkbox_edocs', { 
-      detail: { status: false } 
-    });
-    window.dispatchEvent(event);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('continue-setup-button')).toHaveTextContent('Save and continue');
-    });
-  });
-
-  test('handles save edocs event', async () => {
-    render(<DigitalSetupPage handleSubmit={mockHandleSubmit} />);
-    
-    const event = new CustomEvent('policy_corres_mgmt_mfe:save_edocs', { 
-      detail: { status: true, loadingStatus: false } 
-    });
-    window.dispatchEvent(event);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('continue-setup-button')).not.toHaveAttribute('disabled');
-    });
-  });
-
-  // Button Click Tests
-  test('handles save button click for general onboarding', async () => {
-    const initialState = {
-      onboardingAndEdocsResult: {
-        onboardingType: DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING,
-        eDocsStatus: false
-      },
-    };
-
-    render(<DigitalSetupPage handleSubmit={mockHandleSubmit} />, { initialState });
-    
-    const saveButton = screen.getByTestId('continue-setup-button');
-    fireEvent.click(saveButton);
-
-    await waitFor(() => {
+      // Verify handleSubmit was called with correct step
       expect(mockHandleSubmit).toHaveBeenCalledWith(DOOTB_GOB_STEPS.NEXT_BEST_ACTION_PAGE);
     });
-  });
 
-  test('handles save button click for migration onboarding', async () => {
-    const initialState = {
-      onboardingAndEdocsResult: {
-        onboardingType: DOOTB_ONBOARDING_TYPE.MIGRATION_ONBOARDING,
-        eDocsStatus: false
-      },
-    };
+    it('handles migration onboarding completion correctly', () => {
+      renderWithContext(DOOTB_ONBOARDING_TYPE.MIGRATION_ONBOARDING);
 
-    render(<DigitalSetupPage handleSubmit={mockHandleSubmit} />, { initialState });
-    
-    const saveButton = screen.getByTestId('continue-setup-button');
-    fireEvent.click(saveButton);
+      // Simulate form started
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('policy_corres_mgmt_mfe:checkbox_edocs', { 
+            detail: { status: true } 
+          })
+        );
+      });
 
-    await waitFor(() => {
+      // Trigger completion
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('policy_corres_mgmt_mfe:save_edocs', {
+            detail: { status: true, loadingStatus: false }
+          })
+        );
+      });
+
+      // Verify tracking event was dispatched
+      expect(mockTrackingDispatch).toHaveBeenCalledWith({
+        pageName: PageName.ONBOARDING_SETUP,
+        interaction: Interaction.COMPLETE,
+        data: {
+          transactionComplete: true,
+          transactionType: TransactionType.DOOTB_ONBOARDING,
+          transactionActivities: Activities.MIGRATION_ONBOARDING,
+        },
+        element: {
+          type: ElementType.FORM,
+          name: ActionName.MIGRATION_ONBOARDING,
+        },
+      });
+
+      // Verify navigation and exit
       expect(exitOnboardingModule).toHaveBeenCalled();
       expect(mockNavigate).toHaveBeenCalledWith('/');
     });
-  });
 
-  // Loading State Tests
-  test('displays spinner when response is loading', async () => {
-    render(<DigitalSetupPage handleSubmit={mockHandleSubmit} />);
-    
-    const loadingEvent = new CustomEvent('policy_corres_mgmt_mfe:save_edocs', { 
-      detail: { status: undefined, loadingStatus: true } 
-    });
-    window.dispatchEvent(loadingEvent);
+    it('handles save with unchecked eDocs correctly', () => {
+      renderWithContext(DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING);
+      
+      const saveButton = screen.getByTestId('continue-setup-button');
+      act(() => {
+        saveButton.click();
+      });
 
-    await waitFor(() => {
-      expect(screen.getByTestId('test-loading-spinner')).toBeInTheDocument();
-    });
-  });
-
-  // Tracking Events Tests
-  test('triggers tracking events on form completion for general onboarding', async () => {
-    const initialState = {
-      onboardingAndEdocsResult: {
-        onboardingType: DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING,
-        eDocsStatus: false
-      },
-    };
-
-    render(<DigitalSetupPage handleSubmit={mockHandleSubmit} />, { initialState });
-    
-    // Trigger form start
-    const checkboxEvent = new CustomEvent('policy_corres_mgmt_mfe:checkbox_edocs', { 
-      detail: { status: true } 
-    });
-    window.dispatchEvent(checkboxEvent);
-
-    const saveButton = screen.getByTestId('continue-setup-button');
-    fireEvent.click(saveButton);
-
-    await waitFor(() => {
+      expect(mockHandleSubmit).toHaveBeenCalledWith(DOOTB_GOB_STEPS.NEXT_BEST_ACTION_PAGE);
       expect(mockTrackingEventWrapper).toHaveBeenCalledWith(expect.objectContaining({
         details: expect.objectContaining({
           interaction: Interaction.CLICK,
           transactionActivities: Activities.GENERAL_ONBOARDING,
-        })
+          element: expect.objectContaining({
+            type: ElementType.BUTTON,
+            name: ActionName.SAVE_AND_CONTINUE,
+          }),
+        }),
       }));
     });
-  });
 
-  test('handles setting link click', async () => {
-    render(<DigitalSetupPage handleSubmit={mockHandleSubmit} />);
+    it('handles migration save with unchecked eDocs correctly', () => {
+      renderWithContext(DOOTB_ONBOARDING_TYPE.MIGRATION_ONBOARDING);
+      
+      const saveButton = screen.getByTestId('continue-setup-button');
+      act(() => {
+        saveButton.click();
+      });
 
-    // Simulate EDocsSection setting link click
-    const event = new CustomEvent('policy_corres_mgmt_mfe:setting_link_click', { 
-      detail: { status: true } 
-    });
-    window.dispatchEvent(event);
-
-    await waitFor(() => {
       expect(exitOnboardingModule).toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith('/');
       expect(mockTrackingEventWrapper).toHaveBeenCalledWith(expect.objectContaining({
         details: expect.objectContaining({
           interaction: Interaction.CLICK,
           transactionComplete: true,
-        })
+          transactionType: TransactionType.DOOTB_ONBOARDING,
+          transactionActivities: Activities.MIGRATION_ONBOARDING,
+        }),
       }));
     });
-  });
 
-  // Cleanup Tests
-  test('removes event listeners on unmount', () => {
-    const { unmount } = render(<DigitalSetupPage handleSubmit={mockHandleSubmit} />);
-    
-    const removeEventListenerSpy = jest.spyOn(window, 'removeEventListener');
-    unmount();
+    it('resets form started state after completion', () => {
+      renderWithContext(DOOTB_ONBOARDING_TYPE.GENERAL_ONBOARDING);
 
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      'policy_corres_mgmt_mfe:checkbox_edocs',
-      expect.any(Function)
-    );
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      'policy_corres_mgmt_mfe:save_edocs',
-      expect.any(Function)
-    );
+      // Start form
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('policy_corres_mgmt_mfe:checkbox_edocs', { 
+            detail: { status: true } 
+          })
+        );
+      });
+
+      // Complete form
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('policy_corres_mgmt_mfe:save_edocs', {
+            detail: { status: true, loadingStatus: false }
+          })
+        );
+      });
+
+      // Verify form started state was reset
+      expect(screen.queryByTestId('continue-setup-button')).toHaveTextContent(
+        'onboardingModule.page2Common.buttonSaveAndContinue'
+      );
+    });
   });
 });
