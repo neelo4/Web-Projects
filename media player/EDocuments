@@ -4,37 +4,63 @@ import React from 'react';
 import { render } from '../../../../test-utils/renderWithProviders';
 import EDocsSection from './EDocsSection';
 import { AppContext } from '../../../AppContext';
+import { GlobalEventsContext } from '@iag-common/mfe-global-events-context';
+import { SiteTrackingContext } from '../../../sitetracking/SiteTrackingProvider';
 
-// Define proper types
+// Define proper interfaces based on your actual types
 interface AppState {
-  someState: string;
+  email?: string;
+  onboardingAndEdocsResult?: {
+    onboardingType?: string;
+    eDocsStatus?: boolean;
+    eDocsResponseStatus?: boolean;
+  };
 }
 
 interface Brand {
   id: string;
   name: string;
-  // Add any other required brand properties
+  // Add other brand properties as needed
 }
 
-// Mock AppContext with proper types
+// Mock contexts
 const mockAppContext = {
   appState: {
-    someState: 'value'
+    email: 'test@example.com',
+    onboardingAndEdocsResult: {
+      onboardingType: 'GENERAL_ONBOARDING',
+      eDocsStatus: false,
+      eDocsResponseStatus: false
+    }
   } as AppState,
-  setAppState: jest.fn() as jest.Mock<void, [AppState | ((prevState: AppState) => AppState)]>
+  setAppState: jest.fn((updater: (prevState: AppState) => AppState) => {
+    if (typeof updater === 'function') {
+      return updater(mockAppContext.appState);
+    }
+    return updater;
+  })
 };
 
-// Mock the lazy-loaded component
+const mockGlobalEventsContext = {
+  // Add required global events context properties
+  dispatch: jest.fn()
+};
+
+const mockSiteTrackingContext = {
+  dispatch: jest.fn()
+};
+
+// Mock components
 jest.mock('@iag/policy-correspondence-mfe/OnboardingModuleEDocsConversion', () => ({
   __esModule: true,
   default: () => <div data-testid="mock-edocs-conversion">Mock EDocs Conversion</div>
 }));
 
-// Mock the Spinner component
 jest.mock('@iag/chroma-react-ui.spinner', () => ({
   Spinner: () => <div data-testid="mock-spinner">Loading...</div>
 }));
 
+// Mock handler functions
 const mockSetIsEDocsRequestComplete = jest.fn();
 const mockSetIsResponseLoading = jest.fn();
 const mockHandleSettingLink = jest.fn();
@@ -53,6 +79,17 @@ const defaultProps = {
   setIsResponseLoading: mockSetIsResponseLoading,
 };
 
+// Wrapper component to provide all necessary contexts
+const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <GlobalEventsContext.Provider value={mockGlobalEventsContext}>
+    <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
+      <AppContext.Provider value={mockAppContext}>
+        {children}
+      </AppContext.Provider>
+    </SiteTrackingContext.Provider>
+  </GlobalEventsContext.Provider>
+);
+
 describe('EDocsSection', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -64,9 +101,9 @@ describe('EDocsSection', () => {
 
   it('renders without crashing', () => {
     render(
-      <AppContext.Provider value={mockAppContext}>
+      <TestWrapper>
         <EDocsSection {...defaultProps} />
-      </AppContext.Provider>
+      </TestWrapper>
     );
     
     expect(screen.getByTestId('mock-edocs-conversion')).toBeInTheDocument();
@@ -74,9 +111,9 @@ describe('EDocsSection', () => {
 
   it('handles save edocs event correctly', () => {
     render(
-      <AppContext.Provider value={mockAppContext}>
+      <TestWrapper>
         <EDocsSection {...defaultProps} />
-      </AppContext.Provider>
+      </TestWrapper>
     );
 
     act(() => {
@@ -91,38 +128,68 @@ describe('EDocsSection', () => {
     expect(mockSetIsEDocsRequestComplete).toHaveBeenCalledWith(true);
   });
 
-  it('renders with different props', () => {
-    const newProps = {
+  it('handles save edocs event with loading state', () => {
+    render(
+      <TestWrapper>
+        <EDocsSection {...defaultProps} />
+      </TestWrapper>
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('policy_corres_mgmt_mfe:save_edocs', {
+          detail: { status: true, loadingStatus: true }
+        })
+      );
+    });
+
+    expect(mockSetIsResponseLoading).toHaveBeenCalledWith(true);
+    expect(mockSetIsEDocsRequestComplete).toHaveBeenCalledWith(false);
+  });
+
+  it('handles setting link click', () => {
+    render(
+      <TestWrapper>
+        <EDocsSection {...defaultProps} />
+      </TestWrapper>
+    );
+
+    act(() => {
+      defaultProps.handleSettingLink(true);
+    });
+
+    expect(mockHandleSettingLink).toHaveBeenCalledWith(true);
+  });
+
+  it('updates when eDocsStatus changes', () => {
+    const propsWithUpdatedStatus = {
       ...defaultProps,
-      eDocsStatus: true,
-      primaryEmail: 'different@example.com'
+      eDocsStatus: true
     };
 
     render(
-      <AppContext.Provider value={mockAppContext}>
-        <EDocsSection {...newProps} />
-      </AppContext.Provider>
+      <TestWrapper>
+        <EDocsSection {...propsWithUpdatedStatus} />
+      </TestWrapper>
     );
 
     expect(screen.getByTestId('mock-edocs-conversion')).toBeInTheDocument();
   });
 
-  // Test AppContext interactions
-  it('uses AppContext correctly', () => {
-    const customContext = {
-      ...mockAppContext,
-      appState: {
-        someState: 'custom-value'
-      } as AppState
-    };
-
-    render(
-      <AppContext.Provider value={customContext}>
+  it('cleans up event listeners on unmount', () => {
+    const { unmount } = render(
+      <TestWrapper>
         <EDocsSection {...defaultProps} />
-      </AppContext.Provider>
+      </TestWrapper>
     );
 
-    // Add assertions for context usage
-    expect(screen.getByTestId('mock-edocs-conversion')).toBeInTheDocument();
+    const removeEventListenerSpy = jest.spyOn(window, 'removeEventListener');
+    
+    unmount();
+
+    expect(removeEventListenerSpy).toHaveBeenCalledWith(
+      'policy_corres_mgmt_mfe:save_edocs',
+      expect.any(Function)
+    );
   });
 });
