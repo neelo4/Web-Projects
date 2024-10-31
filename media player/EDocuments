@@ -1,24 +1,14 @@
-// EDocsSection.tsx
 import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
 import { Spinner } from '@iag/chroma-react-ui.spinner';
-import React, { lazy, Suspense, useContext, useEffect, memo } from 'react';
+import React, { lazy, Suspense, useContext, useEffect } from 'react';
 import { AppContext } from '../../../AppContext';
 import ErrorBoundary, { ErrorTypeCode } from '../../../components/ErrorBoundary';
 import { Brand } from '../../../models/Brand';
 import sessionId from '../../../sessionId';
 
-// Preload the component
-const OnboardingEDocsConversionRemote = lazy(() => {
-  // Start loading the component immediately
-  const componentPromise = import('@iag/policy-correspondence-mfe/OnboardingModuleEDocsConversion');
-  return componentPromise;
-});
-
-// Preload the component as soon as possible
-const preloadEDocs = () => {
-  const componentPromise = import('@iag/policy-correspondence-mfe/OnboardingModuleEDocsConversion');
-  return componentPromise;
-};
+const OnboardingEDocsConversionRemote = lazy(
+  () => import('@iag/policy-correspondence-mfe/OnboardingModuleEDocsConversion'),
+);
 
 interface EdocsSectionProps {
   brand: Brand;
@@ -30,16 +20,7 @@ interface EdocsSectionProps {
   setIsResponseLoading: (status: boolean) => void;
 }
 
-// Custom loading component to improve user experience
-const LoadingSpinner = memo(() => (
-  <div className="flex items-center justify-center p-4">
-    <Spinner className="left-1/2" />
-    <span className="ml-2">Loading E-Docs...</span>
-  </div>
-));
-
-// Memoized EDocsSection component
-const EDocsSection: React.FC<BrandDataProps & EdocsSectionProps> = memo(({
+const EDocsSection: React.FC<BrandDataProps & EdocsSectionProps> = ({
   tt,
   brand,
   partyId,
@@ -50,11 +31,6 @@ const EDocsSection: React.FC<BrandDataProps & EdocsSectionProps> = memo(({
   eDocsStatus,
 }) => {
   const { appState } = useContext(AppContext);
-
-  // Start preloading when component mounts
-  useEffect(() => {
-    preloadEDocs();
-  }, []);
 
   useEffect(() => {
     const handleSaveEdocsEvent = (e: CustomEvent<{ status: boolean; loadingStatus: boolean }>) => {
@@ -69,12 +45,12 @@ const EDocsSection: React.FC<BrandDataProps & EdocsSectionProps> = memo(({
     return () => {
       window.removeEventListener('policy_corres_mgmt_mfe:save_edocs', handleSaveEdocsEvent);
     };
-  }, [setIsEDocsRequestComplete, setIsResponseLoading]);
+  }, []);
 
   return (
     <div data-testid="switch-to-edocs-section" className={`px-2 py-2 border border-${tt('constants.borderColor')}`}>
       <ErrorBoundary errorType={ErrorTypeCode.EdocsConversion}>
-        <Suspense fallback={<LoadingSpinner />}>
+        <Suspense fallback={<Spinner className="left-1/2" />}>
           <OnboardingEDocsConversionRemote
             brand={brand}
             partyId={partyId}
@@ -87,16 +63,6 @@ const EDocsSection: React.FC<BrandDataProps & EdocsSectionProps> = memo(({
       </ErrorBoundary>
     </div>
   );
-});
-
-EDocsSection.displayName = 'EDocsSection';
-
-// Update the DigitalSetupPage component to implement preloading
-const preloadComponents = () => {
-  preloadEDocs();
 };
-
-// Call this function when the app initializes or when navigating to the parent route
-preloadComponents();
 
 export default connectIagBrand()(EDocsSection);
