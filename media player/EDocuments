@@ -1,68 +1,174 @@
-import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
-import { Spinner } from '@iag/chroma-react-ui.spinner';
-import React, { lazy, Suspense, useContext, useEffect } from 'react';
+import { screen, fireEvent } from '@testing-library/react';
+import { act } from 'react-dom/test-utils';
+import React from 'react';
+import { render } from '../../../../test-utils/renderWithProviders';
+import EDocsSection from './EDocsSection';
 import { AppContext } from '../../../AppContext';
-import ErrorBoundary, { ErrorTypeCode } from '../../../components/ErrorBoundary';
-import { Brand } from '../../../models/Brand';
-import sessionId from '../../../sessionId';
 
-const OnboardingEDocsConversionRemote = lazy(
-  () => import('@iag/policy-correspondence-mfe/OnboardingModuleEDocsConversion'),
-);
+// Mock the lazy-loaded component
+jest.mock('@iag/policy-correspondence-mfe/OnboardingModuleEDocsConversion', () => ({
+  __esModule: true,
+  default: () => <div data-testid="mock-edocs-conversion">Mock EDocs Conversion</div>
+}));
 
-interface EdocsSectionProps {
-  brand: Brand;
-  partyId: string;
-  primaryEmail: string;
-  eDocsStatus: boolean;
-  handleSettingLink: (settingStatus: boolean) => void;
-  setIsEDocsRequestComplete: (status: boolean) => void;
-  setIsResponseLoading: (status: boolean) => void;
-}
+// Mock the Spinner component
+jest.mock('@iag/chroma-react-ui.spinner', () => ({
+  Spinner: () => <div data-testid="mock-spinner">Loading...</div>
+}));
 
-const EDocsSection: React.FC<BrandDataProps & EdocsSectionProps> = ({
-  tt,
-  brand,
-  partyId,
-  primaryEmail,
-  handleSettingLink,
-  setIsEDocsRequestComplete,
-  setIsResponseLoading,
-  eDocsStatus,
-}) => {
-  const { appState } = useContext(AppContext);
+const mockSetIsEDocsRequestComplete = jest.fn();
+const mockSetIsResponseLoading = jest.fn();
+const mockHandleSettingLink = jest.fn();
 
-  useEffect(() => {
-    const handleSaveEdocsEvent = (e: CustomEvent<{ status: boolean; loadingStatus: boolean }>) => {
-      const responseStatus = e.detail.status;
-      if (responseStatus !== undefined) {
-        setIsResponseLoading(e.detail.loadingStatus);
-        setIsEDocsRequestComplete(!e.detail.loadingStatus && (responseStatus === true || responseStatus === false));
-      }
-    };
-
-    window.addEventListener('policy_corres_mgmt_mfe:save_edocs', handleSaveEdocsEvent);
-    return () => {
-      window.removeEventListener('policy_corres_mgmt_mfe:save_edocs', handleSaveEdocsEvent);
-    };
-  }, []);
-
-  return (
-    <div data-testid="switch-to-edocs-section" className={`px-2 py-2 border border-${tt('constants.borderColor')}`}>
-      <ErrorBoundary errorType={ErrorTypeCode.EdocsConversion}>
-        <Suspense fallback={<Spinner className="left-1/2" />}>
-          <OnboardingEDocsConversionRemote
-            brand={brand}
-            partyId={partyId}
-            xIagContext={{ sessionId }}
-            primaryEmail={primaryEmail}
-            eDocsStatus={eDocsStatus}
-            handleSettingLink={handleSettingLink}
-          />
-        </Suspense>
-      </ErrorBoundary>
-    </div>
-  );
+const defaultProps = {
+  brand: {
+    id: 'test-brand',
+    name: 'Test Brand'
+  },
+  partyId: 'test-party-id',
+  primaryEmail: 'test@example.com',
+  eDocsStatus: false,
+  handleSettingLink: mockHandleSettingLink,
+  setIsEDocsRequestComplete: mockSetIsEDocsRequestComplete,
+  setIsResponseLoading: mockSetIsResponseLoading,
 };
 
-export default connectIagBrand()(EDocsSection);
+const mockAppContext = {
+  appState: {
+    someState: 'value'
+  }
+};
+
+describe('EDocsSection', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it('renders without crashing', () => {
+    render(
+      <AppContext.Provider value={mockAppContext}>
+        <EDocsSection {...defaultProps} />
+      </AppContext.Provider>
+    );
+    
+    expect(screen.getByTestId('mock-edocs-conversion')).toBeInTheDocument();
+  });
+
+  it('handles save edocs event correctly', () => {
+    render(
+      <AppContext.Provider value={mockAppContext}>
+        <EDocsSection {...defaultProps} />
+      </AppContext.Provider>
+    );
+
+    // Simulate successful save event
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('policy_corres_mgmt_mfe:save_edocs', {
+          detail: { status: true, loadingStatus: false }
+        })
+      );
+    });
+
+    expect(mockSetIsResponseLoading).toHaveBeenCalledWith(false);
+    expect(mockSetIsEDocsRequestComplete).toHaveBeenCalledWith(true);
+  });
+
+  it('handles save edocs event with loading state', () => {
+    render(
+      <AppContext.Provider value={mockAppContext}>
+        <EDocsSection {...defaultProps} />
+      </AppContext.Provider>
+    );
+
+    // Simulate loading state
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('policy_corres_mgmt_mfe:save_edocs', {
+          detail: { status: true, loadingStatus: true }
+        })
+      );
+    });
+
+    expect(mockSetIsResponseLoading).toHaveBeenCalledWith(true);
+    expect(mockSetIsEDocsRequestComplete).toHaveBeenCalledWith(false);
+  });
+
+  it('handles save edocs event with false status', () => {
+    render(
+      <AppContext.Provider value={mockAppContext}>
+        <EDocsSection {...defaultProps} />
+      </AppContext.Provider>
+    );
+
+    // Simulate failed save event
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('policy_corres_mgmt_mfe:save_edocs', {
+          detail: { status: false, loadingStatus: false }
+        })
+      );
+    });
+
+    expect(mockSetIsResponseLoading).toHaveBeenCalledWith(false);
+    expect(mockSetIsEDocsRequestComplete).toHaveBeenCalledWith(true);
+  });
+
+  it('removes event listener on unmount', () => {
+    const { unmount } = render(
+      <AppContext.Provider value={mockAppContext}>
+        <EDocsSection {...defaultProps} />
+      </AppContext.Provider>
+    );
+
+    const removeEventListenerSpy = jest.spyOn(window, 'removeEventListener');
+    
+    unmount();
+
+    expect(removeEventListenerSpy).toHaveBeenCalledWith(
+      'policy_corres_mgmt_mfe:save_edocs',
+      expect.any(Function)
+    );
+  });
+
+  it('renders with different props', () => {
+    const newProps = {
+      ...defaultProps,
+      eDocsStatus: true,
+      primaryEmail: 'different@example.com'
+    };
+
+    render(
+      <AppContext.Provider value={mockAppContext}>
+        <EDocsSection {...newProps} />
+      </AppContext.Provider>
+    );
+
+    expect(screen.getByTestId('mock-edocs-conversion')).toBeInTheDocument();
+  });
+
+  // Test error boundary
+  it('renders error boundary when component throws', () => {
+    const ErrorComponent = () => {
+      throw new Error('Test error');
+    };
+
+    jest.mock('@iag/policy-correspondence-mfe/OnboardingModuleEDocsConversion', () => ({
+      __esModule: true,
+      default: ErrorComponent
+    }));
+
+    render(
+      <AppContext.Provider value={mockAppContext}>
+        <EDocsSection {...defaultProps} />
+      </AppContext.Provider>
+    );
+
+    // Verify error boundary handling
+    expect(screen.queryByTestId('error-boundary')).toBeTruthy();
+  });
+});
