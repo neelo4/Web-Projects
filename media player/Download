@@ -1,132 +1,48 @@
+import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import '@testing-library/jest-dom';
-import DownloadAppSection from './DownloadAppSection';
-import { BrandDataProps } from '@iag-common/iag-brand-context';
+import appIcon from '../../../assets/images/app-icon.svg';
+import qrCodeImage from '../../../assets/images/NRMA-qr-code.svg';
+import {
+  GOOGLE_PLAY_STORE_IMG,
+  GOOGLE_PLAY_STORE_URL,
+  IOS_APP_STORE_IMG,
+  IOS_APP_STORE_URL,
+} from '../../../components/shared/Constants';
 
-// Mock the image imports
-jest.mock('../../../assets/images/app-icon.svg', () => 'app-icon.svg');
-jest.mock('../../../assets/images/NRMA-qr-code.svg', () => 'qr-code.svg');
+const DownloadAppSection: React.FC<BrandDataProps> = ({ tt }) => {
+  return (
+    <div
+      data-testid="download-app-section"
+      className={`flex flex-col items-start mb-2 justify-between px-2 py-2 border 
+        border-${tt('constants.borderColor')} sm:flex-row`}
+    >
+      <div className="p-4">
+        <div className="flex flex-col gap-2 items-start sm:flex-row sm:gap-4 mt-1">
+          <img src={appIcon} alt="download app icon" />
+          <h2 data-testid="download-app-title" className="text-lg sm:pb-4 font-medium">
+            {tt('onboardingModule.page2Common.downloadApp')}
+          </h2>
+        </div>
+        <p data-testid="download-app-details" className="mb-0 font-normal max-w-3xl sm:pl-8 mt-1 sm:-mt-3 text-base">
+          {tt('onboardingModule.page2Common.downloadDetails')}
+        </p>
+        <div className="flex mt-2 space-x-2 sm:pl-8 max-2-full">
+          <a href={IOS_APP_STORE_URL} target="_blank" rel="noreferrer" data-testid="nrma-app-ios">
+            <img src={IOS_APP_STORE_IMG} alt="IOS App Store Image" className="w-32 h-8 sm:w-24"></img>{' '}
+          </a>
+          <a href={GOOGLE_PLAY_STORE_URL} target="_blank" rel="noreferrer" data-testid="nrma-app-google">
+            <img src={GOOGLE_PLAY_STORE_IMG} alt="Google App Store Image" className="w-32 h-8 sm:w-24"></img>{' '}
+          </a>
+        </div>
+      </div>
+      <div className="flex flex-row gap-3 items-center justify-center m-4 p-2 border border-primary-lighter w-[238px] h-22 rounded-md md:flex hidden">
+        <img src={qrCodeImage} alt="QR Code Image" className="w-20 h-20 object-contain" data-testid="nrma-qr-code" />
+        <p className="text-xs w-[104px] h-11" data-testid="nrma-qr-code-description">
+          {tt('onboardingModule.page2Common.qrCodeDescription')}
+        </p>
+      </div>
+    </div>
+  );
+};
 
-// Mock the constants
-jest.mock('../../../components/shared/Constants', () => ({
-  GOOGLE_PLAY_STORE_IMG: 'google-play.png',
-  GOOGLE_PLAY_STORE_URL: 'https://play.google.com/store',
-  IOS_APP_STORE_IMG: 'app-store.png',
-  IOS_APP_STORE_URL: 'https://apps.apple.com',
-}));
-
-describe('DownloadAppSection', () => {
-  // Mock translation function
-  const mockTt = (key: string) => {
-    const translations: { [key: string]: string } = {
-      'constants.borderColor': 'gray-200',
-      'onboardingModule.page2Common.downloadApp': 'Download our app',
-      'onboardingModule.page2Common.downloadDetails': 'Get the app details',
-      'onboardingModule.page2Common.qrCodeDescription': 'Scan QR code to download',
-    };
-    return translations[key] || key;
-  };
-
-  const defaultProps: BrandDataProps = {
-    tt: mockTt,
-  };
-
-  it('renders the component with all elements', () => {
-    render(<DownloadAppSection {...defaultProps} />);
-
-    // Test main container
-    const container = screen.getByTestId('download-app-section');
-    expect(container).toBeInTheDocument();
-    expect(container).toHaveClass('flex');
-
-    // Test app icon
-    const appIcon = screen.getByAltText('download app icon');
-    expect(appIcon).toBeInTheDocument();
-    expect(appIcon).toHaveAttribute('src', 'app-icon.svg');
-
-    // Test title
-    const title = screen.getByTestId('download-app-title');
-    expect(title).toBeInTheDocument();
-    expect(title).toHaveTextContent('Download our app');
-
-    // Test details
-    const details = screen.getByTestId('download-app-details');
-    expect(details).toBeInTheDocument();
-    expect(details).toHaveTextContent('Get the app details');
-  });
-
-  it('renders app store links correctly', () => {
-    render(<DownloadAppSection {...defaultProps} />);
-
-    // Test iOS App Store link
-    const iosLink = screen.getByTestId('nrma-app-ios');
-    expect(iosLink).toBeInTheDocument();
-    expect(iosLink).toHaveAttribute('href', 'https://apps.apple.com');
-    expect(iosLink).toHaveAttribute('target', '_blank');
-    expect(iosLink).toHaveAttribute('rel', 'noreferrer');
-
-    // Test iOS App Store image
-    const iosImage = screen.getByAltText('IOS App Store Image');
-    expect(iosImage).toBeInTheDocument();
-    expect(iosImage).toHaveAttribute('src', 'app-store.png');
-    expect(iosImage).toHaveClass('w-32', 'h-8', 'sm:w-24');
-
-    // Test Google Play Store link
-    const googleLink = screen.getByTestId('nrma-app-google');
-    expect(googleLink).toBeInTheDocument();
-    expect(googleLink).toHaveAttribute('href', 'https://play.google.com/store');
-    expect(googleLink).toHaveAttribute('target', '_blank');
-    expect(googleLink).toHaveAttribute('rel', 'noreferrer');
-
-    // Test Google Play Store image
-    const googleImage = screen.getByAltText('Google App Store Image');
-    expect(googleImage).toBeInTheDocument();
-    expect(googleImage).toHaveAttribute('src', 'google-play.png');
-    expect(googleImage).toHaveClass('w-32', 'h-8', 'sm:w-24');
-  });
-
-  it('renders QR code section correctly', () => {
-    render(<DownloadAppSection {...defaultProps} />);
-
-    // Test QR code image
-    const qrCode = screen.getByTestId('nrma-qr-code');
-    expect(qrCode).toBeInTheDocument();
-    expect(qrCode).toHaveAttribute('src', 'qr-code.svg');
-    expect(qrCode).toHaveAttribute('alt', 'QR Code Image');
-    expect(qrCode).toHaveClass('w-20', 'h-20', 'object-contain');
-
-    // Test QR code description
-    const qrDescription = screen.getByTestId('nrma-qr-code-description');
-    expect(qrDescription).toBeInTheDocument();
-    expect(qrDescription).toHaveTextContent('Scan QR code to download');
-    expect(qrDescription).toHaveClass('text-xs', 'w-[104px]', 'h-11');
-  });
-
-  it('applies correct responsive classes', () => {
-    render(<DownloadAppSection {...defaultProps} />);
-
-    // Test main container responsive classes
-    const container = screen.getByTestId('download-app-section');
-    expect(container).toHaveClass('sm:flex-row');
-
-    // Test title responsive classes
-    const title = screen.getByTestId('download-app-title');
-    expect(title).toHaveClass('sm:pb-4');
-
-    // Test details responsive classes
-    const details = screen.getByTestId('download-app-details');
-    expect(details).toHaveClass('sm:pl-8', 'sm:-mt-3');
-
-    // Test QR code container responsive classes
-    const qrCodeContainer = screen.getByTestId('nrma-qr-code').parentElement;
-    expect(qrCodeContainer).toHaveClass('md:flex', 'hidden');
-  });
-
-  it('applies correct border color from translation', () => {
-    render(<DownloadAppSection {...defaultProps} />);
-    
-    const container = screen.getByTestId('download-app-section');
-    expect(container).toHaveClass('border-gray-200');
-  });
-});
+export default connectIagBrand()(DownloadAppSection);
