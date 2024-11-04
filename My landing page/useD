@@ -1,0 +1,67 @@
+import { gql } from '@apollo/client';
+import { useContext, useEffect } from 'react';
+import { AppContext } from '../../AppContext';
+import { FeatureName, useFeaturesConfig } from '../../features-config';
+import { mapDashboardDetails } from '../../mappers/mapDashboardDetails';
+import { CustomerIdentityType } from '../../models/Brand';
+import { DashboardDetails } from '../../models/DashboardDetails';
+import { getCustomerCheck } from '../../utils/partyUtils';
+import { setSessionStateItem } from '../../utils/sessionStateUtils';
+import { ApiHook, useApiQuery } from './useApi';
+
+type Variables = {
+  policy_statuses?: string[];
+};
+
+const GET_DASHBOARD_DETAILS = () => gql`
+  query getDashboardDetails {
+    getIndividual
+  }
+`;
+
+const useDashboardDetails: ApiHook<DashboardDetails, Variables> = () => {
+  const { setAppState, appState } = useContext(AppContext);
+
+  const useHeritageClaimViewMfe = useFeaturesConfig(FeatureName.USE_HERITAGE_CLAIM_VIEW_MFE);
+  const dashboardDetails = useHeritageClaimViewMfe
+    ? {
+        data: {
+          firstName: '',
+          lastName: '',
+          fullName: '',
+          preferredName: '',
+          email: '',
+          staffNumber: '',
+          isStaffMember: false,
+          externalReferences: [{ source_id: '', value: '', information_source: '', source_system: '' }],
+        },
+        loading: false,
+        hasAuthenticationError: false,
+      }
+    : useApiQuery(GET_DASHBOARD_DETAILS(), mapDashboardDetails, {
+        staleWhileRevalidate: true,
+      });
+
+  const isCrodsAvailable = getCustomerCheck(CustomerIdentityType.CRODS);
+
+  useEffect(() => {
+    if (useHeritageClaimViewMfe || !dashboardDetails?.data) return;
+    setAppState((appState) => ({
+      ...appState,
+      dashboardHistory: true,
+      firstName: dashboardDetails.data.firstName,
+      lastName: dashboardDetails.data.lastName,
+      fullName: dashboardDetails.data.fullName,
+      preferredName: dashboardDetails.data.preferredName,
+      email: dashboardDetails.data.email,
+      staffNumber: dashboardDetails.data.staffNumber,
+      isStaffMember: dashboardDetails.data.isStaffMember,
+      isCrodsAvailable: isCrodsAvailable,
+      externalReferences: dashboardDetails.data.externalReferences,
+    }));
+    setSessionStateItem('dashboardHistory', 'true');
+  }, [dashboardDetails.data]);
+  return dashboardDetails;
+};
+
+export default useDashboardDetails;
