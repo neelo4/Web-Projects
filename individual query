@@ -1,0 +1,33 @@
+// Add this new mapping function alongside your other mapping functions
+const mapCustomerRelationship = (customer_relationship: definitions["CustomerRelationship"]) => ({
+  effective_from: customer_relationship?.effective_from ?? "",
+});
+
+// Then update your filterIndividualDetails function to use this mapper
+const filterIndividualDetails = ({ individual }: definitions["RetrieveResponse"]) => {
+  const {
+    party_id,
+    external_references,
+    names,
+    phone_contacts,
+    email_contacts,
+    date_of_birth,
+    staff,
+    addresses,
+    assessments,
+    customer_relationship,
+  } = individual ?? {};
+
+  return {
+    party_id,
+    external_references,
+    names: mapNames(names),
+    phone_contacts,
+    email_contacts: mapEmailContacts(email_contacts),
+    date_of_birth,
+    staff,
+    addresses,
+    assessments,
+    customer_relationship: mapCustomerRelationship(customer_relationship),  // Use the mapper here
+  };
+};
