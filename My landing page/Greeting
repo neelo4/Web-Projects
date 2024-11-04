@@ -1,0 +1,50 @@
+import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
+import { Badge } from '@iag/chroma-react-ui.badge';
+import { Container } from '@iag/chroma-react-ui.container';
+import { Icon } from '@iag/chroma-react-ui.icon';
+import React, { useContext } from 'react';
+import { HomeDetailsContext } from '../../pages/HomeContainer';
+import { FeatureName, useFeaturesConfig } from './../../features-config';
+
+const Greeting: React.FC<BrandDataProps> = ({ tExists, tt }) => {
+  const { staffNumber, preferredName, firstName } = useContext(HomeDetailsContext);
+  const hideIndividualDetails = useFeaturesConfig(FeatureName.HIDE_INDIVIDUAL_DETAILS);
+  const bannerBackgroundColor = useFeaturesConfig(FeatureName.COMPONENT_STYLE_BANNER_BG_COLOR);
+
+  const textClassName = tExists('constants.colors.greetingTextColor')
+    ? `text-${tt('constants.colors.greetingTextColor')}`
+    : `text-${tt('constants.colors.bannerTextColor')}`;
+
+  const getGreetingTitle = () => {
+    if (hideIndividualDetails) {
+      return tt('pages.home.greeting');
+    }
+
+    return tt('pages.home.greeting') + (preferredName == '' ? firstName : preferredName);
+  };
+
+  return (
+    <div className={`${bannerBackgroundColor}`}>
+      <Container className="py-10 px-4">
+        <div className="max-w-full mx-auto flex flex-col gap-2">
+          <h1 className={`${textClassName} font-bold text-[32px]`} data-testid="page-title">
+            {getGreetingTitle()}
+          </h1>
+          <p className={`${textClassName} mb-0`}>{tt('pages.home.greetingMessage')}</p>
+          {staffNumber && (
+            <Badge
+              className={`w-fit items-center bg-${tt('constants.colors.staffBadgeBgColor')} text-${tt(
+                'constants.colors.staffBadgeColor',
+              )}`}
+            >
+              <Icon className={`i-user-circle mr-2 text-base`} />
+              {tt('pages.home.staffBadge')}
+            </Badge>
+          )}
+        </div>
+      </Container>
+    </div>
+  );
+};
+
+export default connectIagBrand()(Greeting);
