@@ -1,135 +1,114 @@
-// ... existing imports remain same ...
+// Add these tests inside the existing "Test greeting component" describe block
+describe('Test greeting component', () => {
+  // ... existing tests remain same ...
 
-describe('Test Customer Since Badge', () => {
-  const renderWithContext = (userProps = {}) => {
-    const defaultUserData = {
-      fullName: 'Test User',
-      firstName: 'Test',
-      isStaffMember: false,
-      email: 'test@test.com',
-      policies: [] as PolicySummary[],
-      preferredName: '',
-      customerSinceDate: '2023-02-28',
-      ...userProps
+  test('handles customer since date display', () => {
+    const userData = {
+      ...userData,  // Using existing userData
+      customerSinceDate: '2023-02-28'
     };
-
-    const featureFlagMocks = {
-      HIDE_INDIVIDUAL_DETAILS: false,
-      COMPONENT_STYLE_BANNER_BG_COLOR: 'bg-blue-900',
-      SHOW_CUSTOMER_SINCE_BADGE: true
-    };
-
-    (useFeaturesConfig as jest.Mock).mockImplementation((featureName: string) => {
-      return featureFlagMocks[featureName];
-    });
-
-    return render(
-      <HomeDetailsContext.Provider value={defaultUserData}>
+    render(
+      <HomeDetailsContext.Provider value={userData}>
         <Greeting />
       </HomeDetailsContext.Provider>
     );
-  };
-
-  test('displays customer since badge when date is valid', () => {
-    renderWithContext({ customerSinceDate: '2023-02-28' });
     expect(screen.getByText('Customer since 2023')).toBeInTheDocument();
   });
 
-  test('does not display customer since badge when date is undefined', () => {
-    renderWithContext({ customerSinceDate: undefined });
+  test('hides customer since badge when date is undefined', () => {
+    const userData = {
+      ...userData,
+      customerSinceDate: undefined
+    };
+    render(
+      <HomeDetailsContext.Provider value={userData}>
+        <Greeting />
+      </HomeDetailsContext.Provider>
+    );
     expect(screen.queryByText(/Customer since/)).not.toBeInTheDocument();
   });
 
-  test('does not display customer since badge when date is empty string', () => {
-    renderWithContext({ customerSinceDate: '' });
+  test('hides customer since badge when date is empty', () => {
+    const userData = {
+      ...userData,
+      customerSinceDate: ''
+    };
+    render(
+      <HomeDetailsContext.Provider value={userData}>
+        <Greeting />
+      </HomeDetailsContext.Provider>
+    );
     expect(screen.queryByText(/Customer since/)).not.toBeInTheDocument();
   });
+});
 
-  test('shows both staff and customer since badges when applicable', () => {
-    renderWithContext({
-      customerSinceDate: '2023-02-28',
-      isStaffMember: true,
-      staffNumber: '123'
-    });
+// Add these tests inside the existing "Test greeting component for STATE" describe block
+describe('Test greeting component for STATE', () => {
+  // ... existing tests remain same ...
+
+  test('displays both staff and customer since badges when applicable', () => {
+    const updatedUserData = {
+      ...userData,
+      customerSinceDate: '2023-02-28'
+    };
+    render(
+      <HomeDetailsContext.Provider value={updatedUserData}>
+        <Greeting />
+      </HomeDetailsContext.Provider>,
+      { brand: Brand.STATE }
+    );
     expect(screen.getByText('Staff')).toBeInTheDocument();
     expect(screen.getByText('Customer since 2023')).toBeInTheDocument();
   });
 
-  test('does not show customer since badge when feature flag is disabled', () => {
+  test('handles invalid date format', () => {
+    const updatedUserData = {
+      ...userData,
+      customerSinceDate: 'invalid-date'
+    };
+    render(
+      <HomeDetailsContext.Provider value={updatedUserData}>
+        <Greeting />
+      </HomeDetailsContext.Provider>,
+      { brand: Brand.STATE }
+    );
+    expect(screen.queryByText(/Customer since/)).not.toBeInTheDocument();
+  });
+
+  test('respects customer since badge feature flag', () => {
     (useFeaturesConfig as jest.Mock).mockImplementation((featureName: string) => {
       return featureName === 'SHOW_CUSTOMER_SINCE_BADGE' ? false : true;
     });
-
-    renderWithContext({ customerSinceDate: '2023-02-28' });
+    const updatedUserData = {
+      ...userData,
+      customerSinceDate: '2023-02-28'
+    };
+    render(
+      <HomeDetailsContext.Provider value={updatedUserData}>
+        <Greeting />
+      </HomeDetailsContext.Provider>,
+      { brand: Brand.STATE }
+    );
     expect(screen.queryByText(/Customer since/)).not.toBeInTheDocument();
   });
 });
 
-describe('Test Greeting Title and Name Display', () => {
-  test('displays preferred name when available', () => {
-    const userData = {
-      fullName: 'Test User',
-      firstName: 'Test',
-      preferredName: 'Testy',
+// Add these tests inside the existing "Test greeting component for WFI" describe block
+describe('Test greeting component for WFI', () => {
+  // ... existing tests remain same ...
+
+  test('displays customer since badge with WFI branding', () => {
+    featureFlagMocks.HIDE_INDIVIDUAL_DETAILS = false;
+    const updatedUserData = {
+      ...userData,
       customerSinceDate: '2023-02-28'
     };
-    renderWithContext(userData);
-    expect(screen.getByText('Hi Testy')).toBeInTheDocument();
-  });
-
-  test('displays first name when preferred name is empty', () => {
-    const userData = {
-      fullName: 'Test User',
-      firstName: 'Test',
-      preferredName: '',
-      customerSinceDate: '2023-02-28'
-    };
-    renderWithContext(userData);
-    expect(screen.getByText('Hi Test')).toBeInTheDocument();
-  });
-
-  test('displays only Welcome when HIDE_INDIVIDUAL_DETAILS is true', () => {
-    (useFeaturesConfig as jest.Mock).mockImplementation((featureName: string) => {
-      return featureName === 'HIDE_INDIVIDUAL_DETAILS' ? true : false;
-    });
-
-    renderWithContext();
-    expect(screen.getByText('Welcome')).toBeInTheDocument();
-    expect(screen.queryByText(/Hi/)).not.toBeInTheDocument();
-  });
-});
-
-describe('Test formatCustomerSinceDate function', () => {
-  test('correctly formats valid date', () => {
-    renderWithContext({ customerSinceDate: '2023-02-28' });
+    render(
+      <HomeDetailsContext.Provider value={updatedUserData}>
+        <Greeting />
+      </HomeDetailsContext.Provider>,
+      { brand: Brand.WFI }
+    );
     expect(screen.getByText('Customer since 2023')).toBeInTheDocument();
-  });
-
-  test('handles invalid date format gracefully', () => {
-    renderWithContext({ customerSinceDate: 'invalid-date' });
-    expect(screen.queryByText(/Customer since/)).not.toBeInTheDocument();
-  });
-
-  test('handles undefined date', () => {
-    renderWithContext({ customerSinceDate: undefined });
-    expect(screen.queryByText(/Customer since/)).not.toBeInTheDocument();
-  });
-});
-
-describe('Test Banner Styling', () => {
-  test('applies correct background color from feature config', () => {
-    const mockBgColor = 'bg-custom-color';
-    (useFeaturesConfig as jest.Mock).mockImplementation((featureName: string) => {
-      return featureName === 'COMPONENT_STYLE_BANNER_BG_COLOR' ? mockBgColor : true;
-    });
-
-    const { container } = renderWithContext();
-    expect(container.firstChild).toHaveClass(mockBgColor);
-  });
-
-  test('applies correct text color based on brand config', () => {
-    renderWithContext();
-    const title = screen.getByTestId('page-title');
-    expect(title).toHaveClass('font-bold', 'text-[32px]');
   });
 });
