@@ -1,62 +1,64 @@
 describe('Test greeting component', () => {
-  const policies: PolicySummary[] = [];
-  const translations = {
-    'pages.home.customerSinceBadge': 'Customer since',
-    'pages.home.greeting': 'Hi',
-    'constants.colors.customerSinceBadgeBgColor': 'accent-background',
-    'constants.colors.customerSinceBadgeTextColor': 'white'
-  };
+  // ... existing code ...
 
-  const featureFlagMocks = {
-    HIDE_INDIVIDUAL_DETAILS: false,
-    COMPONENT_STYLE_BANNER_BG_COLOR: 'bg-blue-900',
-    SHOW_CUSTOMER_SINCE_BADGE: true
-  };
-
-  const userData = {
-    fullName: 'Tester',
-    firstName: 'Tester',
-    isStaffMember: false,
-    email: 'jdisney@disney.com.au',
-    policies: policies,
-    preferredName: '',
-    customerSinceDate: '2023-02-28'
-  };
-
-  const dashboardSuccessAlert: SuccessAlert = {
-    status: true,
-    heading: 'Your message has been received successfully.',
-    appendEmail: true,
-    subText: 'One of our team members will get back to you within 3 business days to the following email address: ',
-  };
-
-  const setAppState = jest.fn();
-  const appState = {
-    showEmailSentSuccess: true,
-    dashboardSuccessAlert,
-    translations  // Add translations to appState
+  const mockTranslations = (key: string) => {
+    const translations = {
+      'pages.home.greeting': 'Hi',
+      'pages.home.customerSinceBadge': 'Customer since',
+      'constants.colors.customerSinceBadgeBgColor': 'accent-background',
+      'constants.colors.customerSinceBadgeTextColor': 'white'
+    };
+    return translations[key] || key;
   };
 
   beforeEach(() => {
-    (useFeaturesConfig as jest.Mock).mockImplementation((featureName: keyof typeof featureFlagMocks) => {
-      return featureFlagMocks[featureName];
+    jest.clearAllMocks();
+    // Mock all necessary feature flags
+    (useFeaturesConfig as jest.Mock).mockImplementation((featureName: string) => {
+      switch (featureName) {
+        case FeatureName.SHOW_CUSTOMER_SINCE_BADGE:
+          return true;
+        case FeatureName.HIDE_INDIVIDUAL_DETAILS:
+          return false;
+        case FeatureName.COMPONENT_STYLE_BANNER_BG_COLOR:
+          return 'bg-blue-900';
+        default:
+          return false;
+      }
     });
   });
 
-  const renderComponent = () => {
-    render(
-      <AppContext.Provider value={{ appState, setAppState }}>
-        <HomeDetailsContext.Provider value={userData}>
-          <Greeting />
-        </HomeDetailsContext.Provider>
-      </AppContext.Provider>,
-    );
-  };
-
-  test('displays customer since badge', () => {
+  test('displays customer since badge', async () => {
     window.__CLIENT_VARS__.brand = Brand.NRMA;
-    renderComponent();
     
-    expect(screen.getByText((content) => content.includes('Customer since'))).toBeInTheDocument();
+    // Mock translations
+    jest.spyOn(require('@iag-common/iag-brand-context'), 'connectIagBrand')
+      .mockImplementation(() => (Component: any) => (props: any) => (
+        <Component
+          {...props}
+          tt={mockTranslations}
+          tExists={() => true}
+        />
+      ));
+
+    const userData = {
+      fullName: 'Tester',
+      firstName: 'Tester',
+      isStaffMember: false,
+      email: 'jdisney@disney.com.au',
+      policies: [] as PolicySummary[],
+      preferredName: '',
+      customerSinceDate: '2023-02-28'
+    };
+
+    render(
+      <HomeDetailsContext.Provider value={userData}>
+        <Greeting />
+      </HomeDetailsContext.Provider>
+    );
+
+    // Use regex to find partial text match
+    const badgeElement = screen.getByText(/Customer since 2023/i);
+    expect(badgeElement).toBeInTheDocument();
   });
 });
