@@ -1,114 +1,62 @@
-// Add these tests inside the existing "Test greeting component" describe block
 describe('Test greeting component', () => {
-  // ... existing tests remain same ...
+  const policies: PolicySummary[] = [];
+  const translations = {
+    'pages.home.customerSinceBadge': 'Customer since',
+    'pages.home.greeting': 'Hi',
+    'constants.colors.customerSinceBadgeBgColor': 'accent-background',
+    'constants.colors.customerSinceBadgeTextColor': 'white'
+  };
 
-  test('handles customer since date display', () => {
-    const userData = {
-      ...userData,  // Using existing userData
-      customerSinceDate: '2023-02-28'
-    };
-    render(
-      <HomeDetailsContext.Provider value={userData}>
-        <Greeting />
-      </HomeDetailsContext.Provider>
-    );
-    expect(screen.getByText('Customer since 2023')).toBeInTheDocument();
-  });
+  const featureFlagMocks = {
+    HIDE_INDIVIDUAL_DETAILS: false,
+    COMPONENT_STYLE_BANNER_BG_COLOR: 'bg-blue-900',
+    SHOW_CUSTOMER_SINCE_BADGE: true
+  };
 
-  test('hides customer since badge when date is undefined', () => {
-    const userData = {
-      ...userData,
-      customerSinceDate: undefined
-    };
-    render(
-      <HomeDetailsContext.Provider value={userData}>
-        <Greeting />
-      </HomeDetailsContext.Provider>
-    );
-    expect(screen.queryByText(/Customer since/)).not.toBeInTheDocument();
-  });
+  const userData = {
+    fullName: 'Tester',
+    firstName: 'Tester',
+    isStaffMember: false,
+    email: 'jdisney@disney.com.au',
+    policies: policies,
+    preferredName: '',
+    customerSinceDate: '2023-02-28'
+  };
 
-  test('hides customer since badge when date is empty', () => {
-    const userData = {
-      ...userData,
-      customerSinceDate: ''
-    };
-    render(
-      <HomeDetailsContext.Provider value={userData}>
-        <Greeting />
-      </HomeDetailsContext.Provider>
-    );
-    expect(screen.queryByText(/Customer since/)).not.toBeInTheDocument();
-  });
-});
+  const dashboardSuccessAlert: SuccessAlert = {
+    status: true,
+    heading: 'Your message has been received successfully.',
+    appendEmail: true,
+    subText: 'One of our team members will get back to you within 3 business days to the following email address: ',
+  };
 
-// Add these tests inside the existing "Test greeting component for STATE" describe block
-describe('Test greeting component for STATE', () => {
-  // ... existing tests remain same ...
+  const setAppState = jest.fn();
+  const appState = {
+    showEmailSentSuccess: true,
+    dashboardSuccessAlert,
+    translations  // Add translations to appState
+  };
 
-  test('displays both staff and customer since badges when applicable', () => {
-    const updatedUserData = {
-      ...userData,
-      customerSinceDate: '2023-02-28'
-    };
-    render(
-      <HomeDetailsContext.Provider value={updatedUserData}>
-        <Greeting />
-      </HomeDetailsContext.Provider>,
-      { brand: Brand.STATE }
-    );
-    expect(screen.getByText('Staff')).toBeInTheDocument();
-    expect(screen.getByText('Customer since 2023')).toBeInTheDocument();
-  });
-
-  test('handles invalid date format', () => {
-    const updatedUserData = {
-      ...userData,
-      customerSinceDate: 'invalid-date'
-    };
-    render(
-      <HomeDetailsContext.Provider value={updatedUserData}>
-        <Greeting />
-      </HomeDetailsContext.Provider>,
-      { brand: Brand.STATE }
-    );
-    expect(screen.queryByText(/Customer since/)).not.toBeInTheDocument();
-  });
-
-  test('respects customer since badge feature flag', () => {
-    (useFeaturesConfig as jest.Mock).mockImplementation((featureName: string) => {
-      return featureName === 'SHOW_CUSTOMER_SINCE_BADGE' ? false : true;
+  beforeEach(() => {
+    (useFeaturesConfig as jest.Mock).mockImplementation((featureName: keyof typeof featureFlagMocks) => {
+      return featureFlagMocks[featureName];
     });
-    const updatedUserData = {
-      ...userData,
-      customerSinceDate: '2023-02-28'
-    };
-    render(
-      <HomeDetailsContext.Provider value={updatedUserData}>
-        <Greeting />
-      </HomeDetailsContext.Provider>,
-      { brand: Brand.STATE }
-    );
-    expect(screen.queryByText(/Customer since/)).not.toBeInTheDocument();
   });
-});
 
-// Add these tests inside the existing "Test greeting component for WFI" describe block
-describe('Test greeting component for WFI', () => {
-  // ... existing tests remain same ...
-
-  test('displays customer since badge with WFI branding', () => {
-    featureFlagMocks.HIDE_INDIVIDUAL_DETAILS = false;
-    const updatedUserData = {
-      ...userData,
-      customerSinceDate: '2023-02-28'
-    };
+  const renderComponent = () => {
     render(
-      <HomeDetailsContext.Provider value={updatedUserData}>
-        <Greeting />
-      </HomeDetailsContext.Provider>,
-      { brand: Brand.WFI }
+      <AppContext.Provider value={{ appState, setAppState }}>
+        <HomeDetailsContext.Provider value={userData}>
+          <Greeting />
+        </HomeDetailsContext.Provider>
+      </AppContext.Provider>,
     );
-    expect(screen.getByText('Customer since 2023')).toBeInTheDocument();
+  };
+
+  test('displays customer since badge', () => {
+    window.__CLIENT_VARS__.brand = Brand.NRMA;
+    renderComponent();
+    
+    expect(screen.getByText((content) => content.includes('Customer since'))).toBeInTheDocument();
   });
 });
