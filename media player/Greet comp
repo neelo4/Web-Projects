@@ -30,7 +30,7 @@ const Greeting: React.FC<BrandDataProps> = ({ tExists, tt }) => {
   return (
     <div className={`${bannerBackgroundColor}`}>
       <Container className="py-10 px-4">
-        <div className="max-w-full mx-auto flex flex-col gap-2">
+        <div className="max-w-full mx-auto flex flex-col gap-2 pl-5">
           <h1 className={`${textClassName} font-bold text-[32px]`} data-testid="page-title">
             {getGreetingTitle()}
           </h1>
@@ -46,17 +46,18 @@ const Greeting: React.FC<BrandDataProps> = ({ tExists, tt }) => {
                 {tt('pages.home.staffBadge')}
               </Badge>
             )}
-            {customerSinceDetails && (
-              <Badge
-                className={`w-fit px-3 py-1.5 gap-2 mt-3 items-center bg-${tt(
-                  'constants.colors.customerSinceBadgeBgColor',
-                )} text-${tt('constants.colors.customerSinceBadgeTextColor')}`}
-              >
-                {!staffNumber && <Icon className={`i-user-circle text-base`} />}
-
-                {`${tt('pages.home.customerSinceBadge')}  ${formatCustomerSinceDate(customerSinceDate)}`}
-              </Badge>
-            )}
+            {customerSinceDetails &&
+              customerSinceDate &&
+              customerSinceDate !== '' &&
+              formatCustomerSinceDate(customerSinceDate) && (
+                <Badge
+                  className={`w-fit px-3 py-1.5 gap-2 mt-3 items-center bg-${tt(
+                    'constants.colors.customerSinceBadgeBgColor',
+                  )} text-${tt('constants.colors.customerSinceBadgeTextColor')}`}
+                >
+                  {`${tt('pages.home.customerSinceBadge')}  ${formatCustomerSinceDate(customerSinceDate)}`}
+                </Badge>
+              )}
           </div>
         </div>
       </Container>
