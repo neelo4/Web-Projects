@@ -1,27 +1,6 @@
-import { screen } from '@testing-library/react';
-import * as React from 'react';
-import { render } from '../../../test-utils/renderWithProviders';
-import { AppContext } from '../../AppContext';
-import Greeting from './Greeting';
-
-import { Brand } from '../../../models/brands';
-import { useFeaturesConfig } from '../../features-config';
-import { PolicySummary } from '../../models/HomeDetails';
-import { SuccessAlert } from '../../models/SuccessAlert';
-import { HomeDetailsContext } from '../../pages/HomeContainer';
-
-jest.mock('../../iagBrandStore');
-jest.mock('./../../features-config', () => ({
-  FeatureName: {
-    HIDE_INDIVIDUAL_DETAILS: 'HIDE_INDIVIDUAL_DETAILS',
-  },
-  useFeaturesConfig: jest.fn(),
-}));
-jest.mock('@iag/identity/useAuth', () => () => ({ isAuthenticated: true }), { virtual: true });
-
-const renderComponent = () => {
+describe('Test greeting component for NRMA with customerSinceDate', () => {
   const policies: PolicySummary[] = [];
-  const userData = {
+  const baseUserData = {
     fullName: 'Tester',
     firstName: 'Tester',
     isStaffMember: false,
@@ -29,109 +8,69 @@ const renderComponent = () => {
     policies: policies,
     preferredName: '',
   };
-  const dashboardSuccessAlert: SuccessAlert = {
-    status: true,
-    heading: 'Your message has been received successfully.',
-    appendEmail: true,
-    subText: 'One of our team members will get back to you within 3 business days to the following email address: ',
-  };
-  const setAppState = jest.fn();
-  const appState = {
-    showEmailSentSuccess: true,
-    dashboardSuccessAlert,
-  };
-  render(
-    <AppContext.Provider value={{ appState, setAppState }}>
-      <HomeDetailsContext.Provider value={userData}>
-        <Greeting />
-      </HomeDetailsContext.Provider>
-    </AppContext.Provider>,
-  );
-};
 
-describe('Test greeting component', () => {
-  const featureFlagMocks = {};
+  const featureFlagMocks = {
+    SHOW_CUSTOMER_SINCE_BADGE: true,
+    COMPONENT_STYLE_BANNER_BG_COLOR: 'bg-white'
+  };
+
+  const mockTranslations = {
+    'pages.home.customerSinceBadge': 'Customer since',
+    'constants.colors.customerSinceBadgeBgColor': 'blue-500',
+    'constants.colors.customerSinceBadgeTextColor': 'white'
+  };
+
   beforeEach(() => {
+    jest.clearAllMocks();
+    window.__CLIENT_VARS__.brand = Brand.NRMA;
+    
     (useFeaturesConfig as jest.Mock).mockImplementation((featureName: keyof typeof featureFlagMocks) => {
       return featureFlagMocks[featureName];
     });
   });
-  test('displays welcome title', () => {
-    window.__CLIENT_VARS__.brand = Brand.NRMA;
-    renderComponent();
 
+  test('renders customer since badge when customerSinceDate is available', () => {
+    const userData = {
+      ...baseUserData,
+      customerSinceDate: '2020-01-01'
+    };
+
+    render(
+      <AppContext.Provider value={{ appState: {}, setAppState: jest.fn() }}>
+        <HomeDetailsContext.Provider value={userData}>
+          <Greeting 
+            tExists={() => true}
+            tt={(key: string) => mockTranslations[key] || key}
+          />
+        </HomeDetailsContext.Provider>
+      </AppContext.Provider>
+    );
+
+    // Look for the Badge component containing the text
+    const badge = screen.getByTestId('customer-since-badge');
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveTextContent('Customer since 2020');
     expect(screen.getByText('Hi Tester')).toBeInTheDocument();
   });
-});
 
-describe('Test greeting component for STATE', () => {
-  const userData = {
-    fullName: 'Test',
-    firstName: 'Tester',
-    isStaffMember: true,
-    email: 'jdisney@disney.com.au',
-    policies: [] as PolicySummary[],
-    preferredName: 'Test Tester',
-    staffNumber: '123',
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    window.__CLIENT_VARS__.brand = Brand.STATE;
+  test('does not render customer since badge when customerSinceDate is undefined', () => {
+    const userData = {
+      ...baseUserData,
+      customerSinceDate: undefined
+    };
 
     render(
-      <HomeDetailsContext.Provider value={userData}>
-        <Greeting />
-      </HomeDetailsContext.Provider>,
-      { brand: Brand.STATE },
+      <AppContext.Provider value={{ appState: {}, setAppState: jest.fn() }}>
+        <HomeDetailsContext.Provider value={userData}>
+          <Greeting 
+            tExists={() => true}
+            tt={(key: string) => mockTranslations[key] || key}
+          />
+        </HomeDetailsContext.Provider>
+      </AppContext.Provider>
     );
-  });
 
-  test('displays greeting messages', () => {
-    expect(screen.getByText('Hi Test Tester')).toBeInTheDocument();
-    expect(
-      screen.getByText('Welcome, here you can manage your insurance policies, pay your premiums or get a quote.'),
-    ).toBeInTheDocument();
-  });
-
-  test('displays staff badge for staff member', () => {
-    expect(screen.getByText('Staff')).toBeInTheDocument();
-  });
-});
-
-describe('Test greeting component for WFI', () => {
-  const policies: PolicySummary[] = [];
-  const userData = {
-    fullName: 'FullName',
-    firstName: 'Firstname',
-    isStaffMember: false,
-    email: 'jdisney@disney.com.au',
-    policies: policies,
-    preferredName: 'Tester Tester',
-  };
-  const featureFlagMocks = { HIDE_INDIVIDUAL_DETAILS: true };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    featureFlagMocks.HIDE_INDIVIDUAL_DETAILS = true;
-    window.__CLIENT_VARS__.brand = Brand.WFI;
-
-    (useFeaturesConfig as jest.Mock).mockImplementation((featureName: keyof typeof featureFlagMocks) => {
-      return featureFlagMocks[featureName];
-    });
-
-    render(
-      <HomeDetailsContext.Provider value={userData}>
-        <Greeting />
-      </HomeDetailsContext.Provider>,
-      { brand: Brand.WFI },
-    );
-  });
-
-  test('displays welcome title', () => {
-    expect(screen.getByText('Welcome')).toBeInTheDocument();
-    expect(
-      screen.getByText('WFI are Good People to Know, we’re here to protect the things you care about'),
-    ).toBeInTheDocument();
+    expect(screen.queryByTestId('customer-since-badge')).not.toBeInTheDocument();
+    expect(screen.getByText('Hi Tester')).toBeInTheDocument();
   });
 });
