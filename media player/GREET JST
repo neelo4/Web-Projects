@@ -1,0 +1,78 @@
+interface UserData {
+  fullName: string;
+  firstName: string;
+  isStaffMember: boolean;
+  email: string;
+  policies: PolicySummary[];
+  preferredName: string;
+  customerSinceDate?: string; // Make it optional with ?
+}
+
+describe('Test greeting component for NRMA', () => {
+  const policies: PolicySummary[] = [];
+  const baseUserData: UserData = {
+    fullName: 'Tester',
+    firstName: 'Tester',
+    isStaffMember: false,
+    email: 'jdisney@disney.com.au',
+    policies: policies,
+    preferredName: '',
+    customerSinceDate: undefined
+  };
+
+  const featureFlagMocks = {
+    SHOW_CUSTOMER_SINCE_BADGE: true,
+    COMPONENT_STYLE_BANNER_BG_COLOR: 'bg-white'
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    window.__CLIENT_VARS__.brand = Brand.NRMA;
+    
+    (useFeaturesConfig as jest.Mock).mockImplementation((featureName: keyof typeof featureFlagMocks) => {
+      return featureFlagMocks[featureName];
+    });
+  });
+
+  test('displays welcome title with customer since badge', () => {
+    const userData: UserData = {
+      ...baseUserData,
+      customerSinceDate: '2020-01-01'
+    };
+
+    render(
+      <AppContext.Provider value={{ appState: {}, setAppState: jest.fn() }}>
+        <HomeDetailsContext.Provider value={userData}>
+          <Greeting />
+        </HomeDetailsContext.Provider>
+      </AppContext.Provider>
+    );
+
+    expect(screen.getByText('Hi Tester')).toBeInTheDocument();
+    const badgeElement = screen.getByText((content) => {
+      return content.includes('Customer since') && content.includes('2020');
+    });
+    expect(badgeElement).toBeInTheDocument();
+  });
+
+  test('does not display customer since badge when date is undefined', () => {
+    const userData: UserData = {
+      ...baseUserData,
+      customerSinceDate: undefined
+    };
+
+    render(
+      <AppContext.Provider value={{ appState: {}, setAppState: jest.fn() }}>
+        <HomeDetailsContext.Provider value={userData}>
+          <Greeting />
+        </HomeDetailsContext.Provider>
+      </AppContext.Provider>
+    );
+
+    expect(screen.getByText('Hi Tester')).toBeInTheDocument();
+    const badgeElement = screen.queryByText((content) => {
+      return content?.includes('Customer since');
+    });
+    expect(badgeElement).not.toBeInTheDocument();
+  });
+});
