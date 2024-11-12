@@ -5,12 +5,14 @@ import { Icon } from '@iag/chroma-react-ui.icon';
 import React, { useContext } from 'react';
 import { HomeDetailsContext } from '../../pages/HomeContainer';
 import { FeatureName, useFeaturesConfig } from './../../features-config';
+import { SiteTrackingContext } from '@iag-common/tracking-context';
 
 const Greeting: React.FC<BrandDataProps> = ({ tExists, tt }) => {
   const { staffNumber, preferredName, firstName, customerSinceDate } = useContext(HomeDetailsContext);
   const hideIndividualDetails = useFeaturesConfig(FeatureName.HIDE_INDIVIDUAL_DETAILS);
   const bannerBackgroundColor = useFeaturesConfig(FeatureName.COMPONENT_STYLE_BANNER_BG_COLOR);
   const customerSinceDetails = useFeaturesConfig(FeatureName.SHOW_CUSTOMER_SINCE_BADGE);
+  const trackingEventContext = useContext(SiteTrackingContext);
 
   const textClassName = tExists('constants.colors.greetingTextColor')
     ? `text-${tt('constants.colors.greetingTextColor')}`
@@ -20,18 +22,50 @@ const Greeting: React.FC<BrandDataProps> = ({ tExists, tt }) => {
     if (hideIndividualDetails) {
       return tt('pages.home.greeting');
     }
-
     return tt('pages.home.greeting') + (preferredName == '' ? firstName : preferredName);
   };
+
   const formatCustomerSinceDate = (date: string | undefined) => {
     if (!date || date === '') return '';
-    // Check if date contains hyphen and can be split
     if (!date.includes('-')) return '';
     const parts = date.split('-');
-    // Check if first part is a valid year (4 digits)
     if (!parts[0] || !/^\d{4}$/.test(parts[0])) return '';
     return parts[0];
   };
+
+  const renderCustomerSinceBadge = () => {
+    const formattedDate = formatCustomerSinceDate(customerSinceDate);
+    
+    if (customerSinceDetails && customerSinceDate && formattedDate) {
+      // Track the show interaction when the badge is rendered
+      trackingEventContext.dispatch({
+        element: {
+          name: 'customer-since',
+          value: formattedDate,
+          type: 'message'
+        },
+        interaction: 'show',
+        data: {
+          customerGroup: 'CUSTOMER',
+          transactionType: 'HOME_PAGE_VIEW',
+          transactionActivities: 'CUSTOMER_DETAILS'
+        }
+      });
+
+      return (
+        <Badge
+          className={`w-fit px-3 py-1.5 gap-2 mt-3 items-center bg-${tt(
+            'constants.colors.customerSinceBadgeBgColor',
+          )} text-${tt('constants.colors.customerSinceBadgeTextColor')}`}
+        >
+          {`${tt('pages.home.customerSinceBadge')} ${formattedDate}`}
+        </Badge>
+      );
+    }
+    
+    return null;
+  };
+
   return (
     <div className={`${bannerBackgroundColor}`}>
       <Container className="py-10 px-4">
@@ -51,18 +85,7 @@ const Greeting: React.FC<BrandDataProps> = ({ tExists, tt }) => {
                 {tt('pages.home.staffBadge')}
               </Badge>
             )}
-            {customerSinceDetails &&
-              customerSinceDate &&
-              customerSinceDate !== '' &&
-              formatCustomerSinceDate(customerSinceDate) && (
-                <Badge
-                  className={`w-fit px-3 py-1.5 gap-2 mt-3 items-center bg-${tt(
-                    'constants.colors.customerSinceBadgeBgColor',
-                  )} text-${tt('constants.colors.customerSinceBadgeTextColor')}`}
-                >
-                  {`${tt('pages.home.customerSinceBadge')}  ${formatCustomerSinceDate(customerSinceDate)}`}
-                </Badge>
-              )}
+            {renderCustomerSinceBadge()}
           </div>
         </div>
       </Container>
