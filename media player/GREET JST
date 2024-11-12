@@ -1,14 +1,14 @@
-interface UserData {
-  fullName: string;
-  firstName: string;
-  isStaffMember: boolean;
-  email: string;
-  policies: PolicySummary[];
-  preferredName: string;
-  customerSinceDate?: string; // Make it optional with ?
-}
+describe('Test greeting component for NRMA with customer since badge', () => {
+  interface UserData {
+    fullName: string;
+    firstName: string;
+    isStaffMember: boolean;
+    email: string;
+    policies: PolicySummary[];
+    preferredName: string;
+    customerSinceDate?: string;
+  }
 
-describe('Test greeting component for NRMA', () => {
   const policies: PolicySummary[] = [];
   const baseUserData: UserData = {
     fullName: 'Tester',
@@ -17,29 +17,23 @@ describe('Test greeting component for NRMA', () => {
     email: 'jdisney@disney.com.au',
     policies: policies,
     preferredName: '',
-    customerSinceDate: undefined
   };
 
   const featureFlagMocks = {
     SHOW_CUSTOMER_SINCE_BADGE: true,
-    COMPONENT_STYLE_BANNER_BG_COLOR: 'bg-white'
+    COMPONENT_STYLE_BANNER_BG_COLOR: 'bg-white',
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
     window.__CLIENT_VARS__.brand = Brand.NRMA;
-    
+
     (useFeaturesConfig as jest.Mock).mockImplementation((featureName: keyof typeof featureFlagMocks) => {
       return featureFlagMocks[featureName];
     });
   });
 
-  test('displays welcome title with customer since badge', () => {
-    const userData: UserData = {
-      ...baseUserData,
-      customerSinceDate: '2020-01-01'
-    };
-
+  const renderWithCustomerSince = (userData: UserData) => {
     render(
       <AppContext.Provider value={{ appState: {}, setAppState: jest.fn() }}>
         <HomeDetailsContext.Provider value={userData}>
@@ -47,32 +41,56 @@ describe('Test greeting component for NRMA', () => {
         </HomeDetailsContext.Provider>
       </AppContext.Provider>
     );
+  };
 
-    expect(screen.getByText('Hi Tester')).toBeInTheDocument();
-    const badgeElement = screen.getByText((content) => {
-      return content.includes('Customer since') && content.includes('2020');
-    });
-    expect(badgeElement).toBeInTheDocument();
+  test('renders customer since badge with valid date format', () => {
+    const userData = {
+      ...baseUserData,
+      customerSinceDate: '2020-01-01',
+    };
+
+    renderWithCustomerSince(userData);
+    const customerSinceBadge = screen.getByText('Customer since 2020');
+    
+    expect(customerSinceBadge).toBeInTheDocument();
+    expect(customerSinceBadge.parentElement).toHaveClass(
+      'w-fit',
+      'px-3',
+      'py-1.5',
+      'gap-2',
+      'mt-3',
+      'items-center'
+    );
   });
 
-  test('does not display customer since badge when date is undefined', () => {
-    const userData: UserData = {
+  test('does not render customer since badge when date is invalid format', () => {
+    const userData = {
       ...baseUserData,
-      customerSinceDate: undefined
+      customerSinceDate: '2020', // Invalid format
     };
 
-    render(
-      <AppContext.Provider value={{ appState: {}, setAppState: jest.fn() }}>
-        <HomeDetailsContext.Provider value={userData}>
-          <Greeting />
-        </HomeDetailsContext.Provider>
-      </AppContext.Provider>
-    );
+    renderWithCustomerSince(userData);
+    expect(screen.queryByText(/Customer since/)).not.toBeInTheDocument();
+  });
 
-    expect(screen.getByText('Hi Tester')).toBeInTheDocument();
-    const badgeElement = screen.queryByText((content) => {
-      return content?.includes('Customer since');
-    });
-    expect(badgeElement).not.toBeInTheDocument();
+  test('does not render customer since badge when feature flag is disabled', () => {
+    featureFlagMocks.SHOW_CUSTOMER_SINCE_BADGE = false;
+    const userData = {
+      ...baseUserData,
+      customerSinceDate: '2020-01-01',
+    };
+
+    renderWithCustomerSince(userData);
+    expect(screen.queryByText(/Customer since/)).not.toBeInTheDocument();
+  });
+
+  test('does not render customer since badge when date is undefined', () => {
+    const userData = {
+      ...baseUserData,
+      customerSinceDate: undefined,
+    };
+
+    renderWithCustomerSince(userData);
+    expect(screen.queryByText(/Customer since/)).not.toBeInTheDocument();
   });
 });
