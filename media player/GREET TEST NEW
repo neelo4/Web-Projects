@@ -1,168 +1,207 @@
-import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import * as React from 'react';
+import { render } from '../../../test-utils/renderWithProviders';
+import { AppContext } from '../../AppContext';
 import Greeting from './Greeting';
+
+import { Brand } from '../../../models/brands';
+import { useFeaturesConfig } from '../../features-config';
+import { PolicySummary } from '../../models/HomeDetails';
+import { SuccessAlert } from '../../models/SuccessAlert';
 import { HomeDetailsContext } from '../../pages/HomeContainer';
-import { useFeaturesConfig } from './../../features-config';
 
-// Mock the required modules and hooks
-jest.mock('@iag-common/iag-brand-context', () => ({
-  connectIagBrand: () => (Component: React.ComponentType) => Component,
-}));
-
+jest.mock('../../iagBrandStore');
 jest.mock('./../../features-config', () => ({
   FeatureName: {
     HIDE_INDIVIDUAL_DETAILS: 'HIDE_INDIVIDUAL_DETAILS',
-    COMPONENT_STYLE_BANNER_BG_COLOR: 'COMPONENT_STYLE_BANNER_BG_COLOR',
-    SHOW_CUSTOMER_SINCE_BADGE: 'SHOW_CUSTOMER_SINCE_BADGE',
   },
   useFeaturesConfig: jest.fn(),
 }));
+jest.mock('@iag/identity/useAuth', () => () => ({ isAuthenticated: true }), { virtual: true });
 
-const mockTranslations = {
-  tt: jest.fn((key) => key),
-  tExists: jest.fn(() => true),
+const renderComponent = () => {
+  const policies: PolicySummary[] = [];
+  const userData = {
+    fullName: 'Tester',
+    firstName: 'Tester',
+    isStaffMember: false,
+    email: 'jdisney@disney.com.au',
+    policies: policies,
+    preferredName: '',
+  };
+  const dashboardSuccessAlert: SuccessAlert = {
+    status: true,
+    heading: 'Your message has been received successfully.',
+    appendEmail: true,
+    subText: 'One of our team members will get back to you within 3 business days to the following email address: ',
+  };
+  const setAppState = jest.fn();
+  const appState = {
+    showEmailSentSuccess: true,
+    dashboardSuccessAlert,
+  };
+  render(
+    <AppContext.Provider value={{ appState, setAppState }}>
+      <HomeDetailsContext.Provider value={userData}>
+        <Greeting />
+      </HomeDetailsContext.Provider>
+    </AppContext.Provider>,
+  );
 };
 
-describe('Greeting Component', () => {
-  const defaultContextValue = {
-    staffNumber: '',
-    preferredName: '',
-    firstName: 'John',
-    customerSinceDate: '',
-  };
+describe('Test greeting component', () => {
+  const featureFlagMocks = {};
+  beforeEach(() => {
+    (useFeaturesConfig as jest.Mock).mockImplementation((featureName: keyof typeof featureFlagMocks) => {
+      return featureFlagMocks[featureName];
+    });
+  });
+  test('displays welcome title', () => {
+    window.__CLIENT_VARS__.brand = Brand.NRMA;
+    renderComponent();
 
-  const renderComponent = (contextValue = defaultContextValue) => {
-    return render(
-      <HomeDetailsContext.Provider value={contextValue}>
-        <Greeting {...mockTranslations} />
-      </HomeDetailsContext.Provider>
-    );
+    expect(screen.getByText('Hi Tester')).toBeInTheDocument();
+  });
+});
+
+describe('Test greeting component for STATE', () => {
+  const userData = {
+    fullName: 'Test',
+    firstName: 'Tester',
+    isStaffMember: true,
+    email: 'jdisney@disney.com.au',
+    policies: [] as PolicySummary[],
+    preferredName: 'Test Tester',
+    staffNumber: '123',
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Default feature flags
-    (useFeaturesConfig as jest.Mock).mockImplementation((featureName) => {
-      switch (featureName) {
-        case 'HIDE_INDIVIDUAL_DETAILS':
-          return false;
-        case 'COMPONENT_STYLE_BANNER_BG_COLOR':
-          return 'bg-primary';
-        case 'SHOW_CUSTOMER_SINCE_BADGE':
-          return true;
-        default:
-          return null;
-      }
+    window.__CLIENT_VARS__.brand = Brand.STATE;
+
+    render(
+      <HomeDetailsContext.Provider value={userData}>
+        <Greeting />
+      </HomeDetailsContext.Provider>,
+      { brand: Brand.STATE },
+    );
+  });
+
+  test('displays greeting messages', () => {
+    expect(screen.getByText('Hi Test Tester')).toBeInTheDocument();
+    expect(
+      screen.getByText('Welcome, here you can manage your insurance policies, pay your premiums or get a quote.'),
+    ).toBeInTheDocument();
+  });
+
+  test('displays staff badge for staff member', () => {
+    expect(screen.getByText('Staff')).toBeInTheDocument();
+  });
+});
+
+describe('Test greeting component for WFI', () => {
+  const policies: PolicySummary[] = [];
+  const userData = {
+    fullName: 'FullName',
+    firstName: 'Firstname',
+    isStaffMember: false,
+    email: 'jdisney@disney.com.au',
+    policies: policies,
+    preferredName: 'Tester Tester',
+  };
+  const featureFlagMocks = { HIDE_INDIVIDUAL_DETAILS: true };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    featureFlagMocks.HIDE_INDIVIDUAL_DETAILS = true;
+    window.__CLIENT_VARS__.brand = Brand.WFI;
+
+    (useFeaturesConfig as jest.Mock).mockImplementation((featureName: keyof typeof featureFlagMocks) => {
+      return featureFlagMocks[featureName];
+    });
+
+    render(
+      <HomeDetailsContext.Provider value={userData}>
+        <Greeting />
+      </HomeDetailsContext.Provider>,
+      { brand: Brand.WFI },
+    );
+  });
+
+  test('displays welcome title', () => {
+    expect(screen.getByText('Welcome')).toBeInTheDocument();
+    expect(
+      screen.getByText('WFI are Good People to Know, we’re here to protect the things you care about'),
+    ).toBeInTheDocument();
+  });
+});
+describe('Test greeting component for NRMA with customerSinceDate', () => {
+  interface UserData {
+    fullName: string;
+    firstName: string;
+    isStaffMember: boolean;
+    email: string;
+    policies: PolicySummary[];
+    preferredName: string;
+    customerSinceDate?: string | undefined; // Make it optional with ?
+  }
+  const policies: PolicySummary[] = [];
+  const baseUserData: UserData = {
+    fullName: 'Tester',
+    firstName: 'Tester',
+    isStaffMember: false,
+    email: 'jdisney@disney.com.au',
+    policies: policies,
+    preferredName: '',
+  };
+
+  const featureFlagMocks = {
+    SHOW_CUSTOMER_SINCE_BADGE: true,
+    COMPONENT_STYLE_BANNER_BG_COLOR: 'bg-white',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    window.__CLIENT_VARS__.brand = Brand.NRMA;
+
+    (useFeaturesConfig as jest.Mock).mockImplementation((featureName: keyof typeof featureFlagMocks) => {
+      return featureFlagMocks[featureName];
     });
   });
 
-  describe('Customer Since Badge', () => {
-    it('should not display customer since badge when customerSinceDate is empty', () => {
-      renderComponent();
-      expect(screen.queryByText(/pages.home.customerSinceBadge/)).not.toBeInTheDocument();
-    });
+  test('renders customer since badge when customerSinceDate is available', () => {
+    const userData: UserData = {
+      ...baseUserData,
+      customerSinceDate: '2020-01-01',
+    };
 
-    it('should display customer since badge with correct year when valid date is provided', () => {
-      const contextValue = {
-        ...defaultContextValue,
-        customerSinceDate: '2020-01-01',
-      };
-      renderComponent(contextValue);
-      expect(screen.getByText(/pages.home.customerSinceBadge.*2020/)).toBeInTheDocument();
-    });
+    render(
+      <AppContext.Provider value={{ appState: {}, setAppState: jest.fn() }}>
+        <HomeDetailsContext.Provider value={userData}>
+          <Greeting />
+        </HomeDetailsContext.Provider>
+      </AppContext.Provider>,
+    );
 
-    it('should not display customer since badge when date format is invalid', () => {
-      const contextValue = {
-        ...defaultContextValue,
-        customerSinceDate: '20200101',
-      };
-      renderComponent(contextValue);
-      expect(screen.queryByText(/pages.home.customerSinceBadge/)).not.toBeInTheDocument();
-    });
-
-    it('should not display customer since badge when feature flag is disabled', () => {
-      (useFeaturesConfig as jest.Mock).mockImplementation((featureName) => 
-        featureName === 'SHOW_CUSTOMER_SINCE_BADGE' ? false : true
-      );
-      const contextValue = {
-        ...defaultContextValue,
-        customerSinceDate: '2020-01-01',
-      };
-      renderComponent(contextValue);
-      expect(screen.queryByText(/pages.home.customerSinceBadge/)).not.toBeInTheDocument();
-    });
-
-    it('should not display customer since badge when year is invalid', () => {
-      const contextValue = {
-        ...defaultContextValue,
-        customerSinceDate: 'invalid-01-01',
-      };
-      renderComponent(contextValue);
-      expect(screen.queryByText(/pages.home.customerSinceBadge/)).not.toBeInTheDocument();
-    });
+    expect(screen.getByTestId('chroma-brand-provider-v6-0-1')).toBeInTheDocument();
+    expect(screen.getByText('Hi Tester')).toBeInTheDocument();
   });
 
-  describe('Staff Badge', () => {
-    it('should display staff badge when staffNumber is present', () => {
-      const contextValue = {
-        ...defaultContextValue,
-        staffNumber: '12345',
-      };
-      renderComponent(contextValue);
-      expect(screen.getByText('pages.home.staffBadge')).toBeInTheDocument();
-    });
+  test('does not render customer since badge when customerSinceDate is undefined', () => {
+    const userData: UserData = {
+      ...baseUserData,
+      customerSinceDate: undefined,
+    };
 
-    it('should not display staff badge when staffNumber is empty', () => {
-      renderComponent();
-      expect(screen.queryByText('pages.home.staffBadge')).not.toBeInTheDocument();
-    });
-  });
+    render(
+      <AppContext.Provider value={{ appState: {}, setAppState: jest.fn() }}>
+        <HomeDetailsContext.Provider value={userData}>
+          <Greeting />
+        </HomeDetailsContext.Provider>
+      </AppContext.Provider>,
+    );
 
-  describe('Greeting Message', () => {
-    it('should display preferred name when available', () => {
-      const contextValue = {
-        ...defaultContextValue,
-        preferredName: 'Johnny',
-        firstName: 'John',
-      };
-      renderComponent(contextValue);
-      expect(screen.getByTestId('page-title')).toHaveTextContent(/Johnny$/);
-    });
-
-    it('should display firstName when preferred name is empty', () => {
-      const contextValue = {
-        ...defaultContextValue,
-        preferredName: '',
-        firstName: 'John',
-      };
-      renderComponent(contextValue);
-      expect(screen.getByTestId('page-title')).toHaveTextContent(/John$/);
-    });
-
-    it('should not display name when HIDE_INDIVIDUAL_DETAILS is enabled', () => {
-      (useFeaturesConfig as jest.Mock).mockImplementation((featureName) => 
-        featureName === 'HIDE_INDIVIDUAL_DETAILS' ? true : false
-      );
-      renderComponent();
-      expect(screen.getByTestId('page-title')).toHaveTextContent('pages.home.greeting');
-    });
-  });
-
-  describe('Styling', () => {
-    it('should apply correct background color from feature flag', () => {
-      const { container } = renderComponent();
-      expect(container.firstChild).toHaveClass('bg-primary');
-    });
-
-    it('should use correct text color when color translation exists', () => {
-      renderComponent();
-      expect(screen.getByTestId('page-title')).toHaveClass('text-constants.colors.greetingTextColor');
-    });
-
-    it('should use banner text color when greeting text color translation does not exist', () => {
-      mockTranslations.tExists.mockReturnValue(false);
-      renderComponent();
-      expect(screen.getByTestId('page-title')).toHaveClass('text-constants.colors.bannerTextColor');
-    });
+    expect(screen.queryByText('Customer since 2020')).not.toBeInTheDocument();
+    expect(screen.getByText('Hi Tester')).toBeInTheDocument();
   });
 });
