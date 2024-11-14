@@ -1,177 +1,205 @@
-import { screen } from '@testing-library/react';
-import { act } from 'react-dom/test-utils';
-import React from 'react';
-import { render } from '../../../../test-utils/renderWithProviders';
-import EDocsSection from './EDocsSection';
-import { AppContext } from '../../../AppContext';
+/* eslint-disable react/prop-types */
 import { GlobalEventsContext } from '@iag-common/mfe-global-events-context';
-import { SiteTrackingContext } from '../../../sitetracking/SiteTrackingProvider';
-import { Brand } from '../../../models/Brand';
-import { BrandDataProps } from '@iag-common/iag-brand-context';
+import { Button } from '@iag/chroma-react-ui.button';
+import { Checkbox, CheckboxProps } from '@iag/chroma-react-ui.checkbox';
+import { Input } from '@iag/chroma-react-ui.input';
+import { Message } from '@iag/chroma-react-ui.message';
+import { Spinner } from '@iag/chroma-react-ui.spinner';
+import noop from 'lodash/noop';
+import { useContext, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { AppContext } from '../../AppContext';
+import eDocsImage from '../../assets/images/eDocs-NRMA.svg';
+import { useSaveEDocs } from '../../hooks/useSaveEDocs';
+import {
+  ActionName,
+  ActionValue,
+  ElementType,
+  Errors,
+  FormName,
+  Interaction,
+  PageName,
+  SubType,
+} from '../../models/SiteTracking';
+import { triggerSaveEDocsEvent } from '../../utils/eDocsUtils';
+import { trackingEventWrapper } from '../../utils/trackingEventWrapper';
+import styles from './EDocsConversionView.module.css';
+import { withGlobalEvents } from '@iag-common/mfe-site-tracking';
+import { ChromaProps, moduleInfo, withChroma } from '../../utils';
+import { useNavigate } from 'react-router-dom';
+import { EDocsConversionProps } from '../../models/EdocsConversion';
 
-// Define the correct interface for your AppState
-interface AppState {
-  email?: string;
-  onboardingAndEdocsResult?: {
-    onboardingType?: string;
-    eDocsStatus?: boolean;
-    eDocsResponseStatus?: boolean;
-  };
-}
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line react/prop-types
+const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
+  const { t } = useTranslation();
 
-// Define the props interface to match your component
-interface EdocsSectionProps extends BrandDataProps {
-  brand: Brand;
-  partyId: string;
-  primaryEmail: string;
-  eDocsStatus: boolean;
-  handleSettingLink: (settingStatus: boolean) => void;
-  setIsEDocsRequestComplete: (status: boolean) => void;
-  setIsResponseLoading: (status: boolean) => void;
-}
+  const [isError, setIsError] = useState<boolean>(false);
 
-// Create strongly typed mock contexts
-const mockAppContext = {
-  appState: {
-    email: 'test@example.com',
-    onboardingAndEdocsResult: {
-      onboardingType: 'GENERAL_ONBOARDING',
-      eDocsStatus: false,
-      eDocsResponseStatus: false
-    }
-  } as AppState,
-  setAppState: jest.fn((updater: (prevState: AppState) => AppState) => {
-    if (typeof updater === 'function') {
-      return updater(mockAppContext.appState);
-    }
-    return updater;
-  })
-};
+  const { updateEDocsCorrespondence, response, error, isLoading } = useSaveEDocs(eDocProps);
 
-const mockGlobalEventsContext = {
-  dispatch: jest.fn()
-};
+  const [consent, setConsent] = useState<CheckboxProps['value']>([]);
+  const [consentError, setConsentError] = useState('');
 
-const mockSiteTrackingContext = {
-  dispatch: jest.fn()
-};
+  const [saveEventTriggered, setSaveEventTriggered] = useState<boolean>(false);
 
-// Mock the required components
-jest.mock('@iag/policy-correspondence-mfe/OnboardingModuleEDocsConversion', () => ({
-  __esModule: true,
-  default: () => <div data-testid="mock-edocs-conversion">Mock EDocs Conversion</div>
-}));
+  // eDoc checkbox value
+  const VALUE_EDOC_CONSENT = 'yes';
+  const consentIsGiven = useMemo(() => consent.includes(VALUE_EDOC_CONSENT), [consent]);
 
-jest.mock('@iag/chroma-react-ui.spinner', () => ({
-  Spinner: () => <div data-testid="mock-spinner">Loading...</div>
-}));
+  const { appState } = useContext(AppContext);
+  const globalEventsContext = useContext(GlobalEventsContext);
+  const navigate = useNavigate();
 
-// Mock handlers
-const mockSetIsEDocsRequestComplete = jest.fn();
-const mockSetIsResponseLoading = jest.fn();
-const mockHandleSettingLink = jest.fn();
+  useEffect(() => {
+    triggerSaveEDocsEvent(response.status, saveEventTriggered);
+  }, [saveEventTriggered]);
 
-// Define props with correct typing
-const defaultProps: Omit<EdocsSectionProps, keyof BrandDataProps> = {
-  brand: {
-    id: 'test-brand',
-    name: 'Test Brand',
-    // Add any other required Brand properties from your Brand type
-  } as Brand,
-  partyId: 'test-party-id',
-  primaryEmail: 'test@example.com',
-  eDocsStatus: false,
-  handleSettingLink: mockHandleSettingLink,
-  setIsEDocsRequestComplete: mockSetIsEDocsRequestComplete,
-  setIsResponseLoading: mockSetIsResponseLoading,
-};
+  const handleConsent = (_: React.ChangeEvent<HTMLInputElement>, value: string[]): void => {
+    setConsent(value);
+    setConsentError('');
 
-// Test wrapper component with all required providers
-const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <GlobalEventsContext.Provider value={mockGlobalEventsContext}>
-    <SiteTrackingContext.Provider value={mockSiteTrackingContext}>
-      <AppContext.Provider value={mockAppContext}>
-        {children}
-      </AppContext.Provider>
-    </SiteTrackingContext.Provider>
-  </GlobalEventsContext.Provider>
-);
-
-describe('EDocsSection', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('renders without crashing', () => {
-    render(
-      <TestWrapper>
-        <EDocsSection
-          {...defaultProps}
-          tt={(key: string) => key} // Mock the tt function from BrandDataProps
-        />
-      </TestWrapper>
-    );
-    
-    expect(screen.getByTestId('mock-edocs-conversion')).toBeInTheDocument();
-  });
-
-  it('handles save edocs event correctly', () => {
-    render(
-      <TestWrapper>
-        <EDocsSection
-          {...defaultProps}
-          tt={(key: string) => key}
-        />
-      </TestWrapper>
-    );
-
-    act(() => {
-      window.dispatchEvent(
-        new CustomEvent('policy_corres_mgmt_mfe:save_edocs', {
-          detail: { status: true, loadingStatus: false }
-        })
-      );
+    trackingEventWrapper(appState, globalEventsContext, {
+      pageName: PageName.DASHBOARD,
+      interaction: Interaction.CLICK,
+      element: {
+        form: FormName.EDOCS_MODAL,
+        name: ActionName.EDOCS_EMAIL_CONFIRMATION,
+        type: ElementType.CHECKBOX,
+        value: value.length > 0 ? ActionValue.CHECKED : ActionValue.UNCHECKED,
+      },
     });
+  };
 
-    expect(mockSetIsResponseLoading).toHaveBeenCalledWith(false);
-    expect(mockSetIsEDocsRequestComplete).toHaveBeenCalledWith(true);
-  });
+  const saveChangesHandler = () => {
+    // Reset error before validation
+    setConsentError('');
+    setSaveEventTriggered(true);
+    if (!consentIsGiven) {
+      setConsentError('Select checkbox');
+      trackingEventWrapper(appState, globalEventsContext, {
+        pageName: PageName.DASHBOARD,
+        interaction: Interaction.ERROR,
+        element: {
+          form: FormName.EDOCS_MODAL,
+          name: ActionName.EDOCS_EMAIL_CONFIRMATION,
+          type: ElementType.CHECKBOX,
+          error: Errors.MISSING,
+        },
+      });
+    }
+    if (consentIsGiven) {
+      setConsent([]);
+      setConsentError('');
 
-  it('renders with different props', () => {
-    const newProps = {
-      ...defaultProps,
-      eDocsStatus: true,
-      primaryEmail: 'different@example.com'
-    };
+      const fetch = async () => {
+        await updateEDocsCorrespondence();
+      };
 
-    render(
-      <TestWrapper>
-        <EDocsSection
-          {...newProps}
-          tt={(key: string) => key}
+      fetch()
+        .then(() => {
+          setSaveEventTriggered(false);
+          trackingEventWrapper(appState, globalEventsContext, {
+            pageName: PageName.DASHBOARD,
+            interaction: Interaction.CLICK,
+            element: {
+              form: FormName.EDOCS_MODAL,
+              name: ActionName.SAVE_EDOCS,
+              type: ElementType.BUTTON,
+              subType: SubType.SUBMIT,
+            },
+          });
+        })
+        .catch(() => {
+          setSaveEventTriggered(false);
+          setIsError(true);
+        });
+    }
+  };
+
+  const handleSwitchButtonClick = () => {
+    trackingEventWrapper(appState, globalEventsContext, {
+      pageName: PageName.DASHBOARD,
+      interaction: Interaction.CLICK,
+      element: {
+        form: FormName.EDOCS_MODAL,
+        name: ActionName.SWITCH_POLICIES_TO_EDOCS,
+        type: ElementType.BUTTON,
+      },
+    });
+    eDocProps?.modalCloseHandler?.();
+    navigate('/profile/policy-correspondence-preferences');
+  };
+
+  const mainContent = () => (
+    <div id="edocs-conversion-view">
+      <div className={styles.flexCenter}>
+        <img src={eDocsImage} alt="eDocs conversion image" width="283px" height="256px" />
+        <p className={styles.bannerText}>{t('pages.eDocsConversionView.bannerText')}</p>
+        <p className={styles.bodyText}>{t('pages.eDocsConversionView.bodyText')}</p>
+      </div>
+      <div className={styles.inputLabel}>{t('pages.eDocsConversionView.inputLabelText')}</div>
+      <Input
+        id="input-email"
+        datatest-id="input-email"
+        className={styles.inputEmail}
+        value={eDocProps.primaryEmail}
+        placeholder="Email address"
+        onChange={noop} // disabled
+        disabled
+      />
+      <div className={styles.consent}>
+        <Checkbox
+          id="edocsConsent"
+          name="edocsConsent"
+          aria-label="edocsConsent"
+          value={consent}
+          variant="block"
+          onChange={handleConsent}
+          options={[
+            {
+              label: <p>{t('pages.eDocsConversionView.checkboxLabelText')}</p>,
+              value: VALUE_EDOC_CONSENT,
+            },
+          ]}
+          error={!!consentError}
         />
-      </TestWrapper>
+        {!!consentError && (
+          <Message className={styles.errorOA} variant="error">
+            {consentError}
+          </Message>
+        )}
+      </div>
+      <Button data-testid="save" variant="primary" className={styles.saveButton} onClick={saveChangesHandler}>
+        {t('pages.eDocsConversionView.saveChangesButton')}
+      </Button>
+      <Button
+        data-testid="policies-to-switch-button"
+        className={styles.switchButton}
+        onClick={handleSwitchButtonClick}
+        variant="primaryOutline"
+      >
+        {t('pages.eDocsConversionView.choosePoliciesButton')}
+      </Button>
+    </div>
+  );
+
+  if (isLoading)
+    return (
+      <div>
+        <Spinner className={styles.edocsSpinner} id="basicSpinner" data-testid="testId" />
+        <p className={styles.loaderText}> {t('pages.eDocsConversionView.loaderText')}</p>
+      </div>
     );
 
-    expect(screen.getByTestId('mock-edocs-conversion')).toBeInTheDocument();
-  });
+  if (error || isError) {
+    return <div>{t('pages.eDocsConversionView.errorText')}</div>;
+  }
 
-  it('cleans up event listeners on unmount', () => {
-    const { unmount } = render(
-      <TestWrapper>
-        <EDocsSection
-          {...defaultProps}
-          tt={(key: string) => key}
-        />
-      </TestWrapper>
-    );
+  return mainContent();
+};
 
-    const removeEventListenerSpy = jest.spyOn(window, 'removeEventListener');
-    unmount();
-
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      'policy_corres_mgmt_mfe:save_edocs',
-      expect.any(Function)
-    );
-  });
+export default withGlobalEvents<ChromaProps & EDocsConversionProps>(withChroma(EDocsConversionView), {
+  componentName: 'modal-edocs',
+  ...moduleInfo,
 });
