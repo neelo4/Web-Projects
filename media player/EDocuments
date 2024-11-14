@@ -4,7 +4,6 @@ import { Checkbox, CheckboxProps } from '@iag/chroma-react-ui.checkbox';
 import { Input } from '@iag/chroma-react-ui.input';
 import { Message } from '@iag/chroma-react-ui.message';
 import { Spinner } from '@iag/chroma-react-ui.spinner';
-import { ChevronDown, ChevronUp } from 'lucide-react';
 import noop from 'lodash/noop';
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -145,12 +144,13 @@ const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
         aria-expanded={isNoteExpanded}
         aria-controls="eligiblePoliciesNote"
       >
-        <span className={styles.noteTitle}>{t('pages.eDocsConversionView.noteOnEligiblePolicies.title')}</span>
-        {isNoteExpanded ? (
-          <ChevronUp className={styles.chevron} size={20} />
-        ) : (
-          <ChevronDown className={styles.chevron} size={20} />
-        )}
+        <span className={styles.noteTitle}>
+          {isNoteExpanded 
+            ? t('pages.eDocsConversionView.noteOnEligiblePolicies.title')
+            : t('pages.eDocsConversionView.noteOnEligiblePolicies.readNote')
+          }
+        </span>
+        <i className={`${!isNoteExpanded ? 'i-plus-circle' : 'i-minus-circle'} ${styles.icon}`} aria-hidden="true" />
       </button>
       {isNoteExpanded && (
         <div id="eligiblePoliciesNote" className={styles.noteContent}>
