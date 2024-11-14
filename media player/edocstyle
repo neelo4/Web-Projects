@@ -1,0 +1,37 @@
+.noteContainer {
+  margin-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1rem;
+}
+
+.noteToggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0.5rem 0;
+  cursor: pointer;
+  color: #4b5563;
+}
+
+.noteTitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.noteContent {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.icon {
+  color: #6b7280;
+  font-size: 1.25rem;
+}
+
+/* Existing styles remain unchanged */
