@@ -137,23 +137,25 @@ const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
   };
 
   const EligiblePoliciesNote = () => (
-    <div className={styles.noteContainer}>
+    <div className="mt-4 border-t border-gray-200 pt-4">
       <button
         onClick={toggleNote}
-        className={styles.noteToggle}
+        className="w-full flex items-center justify-between px-2 py-3 hover:bg-gray-50 transition-colors rounded-md"
         aria-expanded={isNoteExpanded}
         aria-controls="eligiblePoliciesNote"
       >
-        <span className={styles.noteTitle}>
-          {isNoteExpanded 
-            ? t('pages.eDocsConversionView.noteOnEligiblePolicies.title')
-            : t('pages.eDocsConversionView.noteOnEligiblePolicies.readNote')
-          }
-        </span>
-        <i className={`${!isNoteExpanded ? 'i-plus-circle' : 'i-minus-circle'} ${styles.icon}`} aria-hidden="true" />
+        <div className="flex items-center gap-2">
+          <i className={`${!isNoteExpanded ? 'i-plus-circle' : 'i-minus-circle'} text-gray-500 text-lg`} aria-hidden="true" />
+          <span className={`text-sm text-gray-600 ${!isNoteExpanded ? 'underline' : ''}`}>
+            {isNoteExpanded 
+              ? t('pages.eDocsConversionView.noteOnEligiblePolicies.showLess')
+              : t('pages.eDocsConversionView.noteOnEligiblePolicies.readNote')
+            }
+          </span>
+        </div>
       </button>
       {isNoteExpanded && (
-        <div id="eligiblePoliciesNote" className={styles.noteContent}>
+        <div id="eligiblePoliciesNote" className="mt-2 ml-8 text-sm text-gray-600 leading-relaxed">
           {t('pages.eDocsConversionView.noteOnEligiblePolicies.content')}
         </div>
       )}
