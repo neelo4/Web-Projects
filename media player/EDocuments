@@ -1,6 +1,5 @@
 import { GlobalEventsContext } from '@iag-common/mfe-global-events-context';
 import { Button } from '@iag/chroma-react-ui.button';
-import { Card } from '@iag/chroma-react-ui.card';
 import { Checkbox, CheckboxProps } from '@iag/chroma-react-ui.checkbox';
 import { Input } from '@iag/chroma-react-ui.input';
 import { Message } from '@iag/chroma-react-ui.message';
@@ -178,7 +177,8 @@ const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
         </p>
       </div>
       
-      <Card className="bg-white p-6 rounded-lg shadow-sm mb-6">
+      {/* Tailwind Card */}
+      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
         <div className="text-base text-gray-700 mb-6">
           {t('pages.eDocsConversionView.bodyText')}
         </div>
@@ -220,7 +220,7 @@ const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
           )}
           <EligiblePoliciesNote />
         </div>
-      </Card>
+      </div>
       
       <div className="flex flex-col items-center gap-4">
         <Button 
