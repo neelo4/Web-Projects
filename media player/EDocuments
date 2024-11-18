@@ -8,7 +8,7 @@ import noop from 'lodash/noop';
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppContext } from '../../AppContext';
-import eDocsImage from '../../assets/images/eDocs-NRMA.svg';
+import eDocsImage from '../../assets/images/eDoc_image.svg';
 import { useSaveEDocs } from '../../hooks/useSaveEDocs';
 import {
   ActionName,
@@ -27,7 +27,7 @@ import { withGlobalEvents } from '@iag-common/mfe-site-tracking';
 import { ChromaProps, moduleInfo, withChroma } from '../../utils';
 import { useNavigate } from 'react-router-dom';
 import { EDocsConversionProps } from '../../models/EdocsConversion';
-
+import { Link } from '@iag/chroma-react-ui.link';
 const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
   const { t } = useTranslation();
   const [isError, setIsError] = useState<boolean>(false);
@@ -137,27 +137,30 @@ const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
   };
 
   const EligiblePoliciesNote = () => (
-    <div className="mt-4 border-t border-gray-200 pt-4">
-      <button
-        onClick={toggleNote}
-        className="w-full flex items-center justify-between px-2 py-3 hover:bg-gray-50 transition-colors rounded-md"
-        aria-expanded={isNoteExpanded}
-        aria-controls="eligiblePoliciesNote"
-      >
-        <div className="flex items-center gap-2">
-          <i className={`${!isNoteExpanded ? 'i-plus-circle' : 'i-minus-circle'} text-gray-500 text-lg`} aria-hidden="true" />
+    <div>
+      <button onClick={toggleNote} aria-expanded={isNoteExpanded} aria-controls="eligiblePoliciesNote">
+        <div className="text-base text-center mx-14 p-3.5">
           <span className={`text-sm text-gray-600 ${!isNoteExpanded ? 'underline' : ''}`}>
-            {isNoteExpanded 
-              ? t('pages.eDocsConversionView.noteOnEligiblePolicies.showLess')
-              : t('pages.eDocsConversionView.noteOnEligiblePolicies.readNote')
-            }
+          {!isNoteExpanded && t('pages.eDocsConversionView.readNote')}
           </span>
+          {!isNoteExpanded && <i className="i-plus-circle text-gray-500 text-lg" aria-hidden="true" />}
         </div>
       </button>
       {isNoteExpanded && (
-        <div id="eligiblePoliciesNote" className="mt-2 ml-8 text-sm text-gray-600 leading-relaxed">
-          {t('pages.eDocsConversionView.noteOnEligiblePolicies.content')}
-        </div>
+        <>
+          <div id="eligiblePoliciesNote" className="text-gray-600 leading-relaxed">
+            <p className="font-medium">{t('pages.eDocsConversionView.noteOnEligiblePoliciesTitle')}</p>
+
+            <p className="font-normal">{t('pages.eDocsConversionView.noteOnEligiblePolicies')}</p>
+
+            <button onClick={toggleNote} className="mt-4 flex items-center text-sm text-gray-600">
+              <div className="flex text-base text-center mx-24">
+                <p className="underline">{t('pages.eDocsConversionView.showLess')}</p>
+                <i className="i-minus-circle text-gray-500 text-lg self-center px-1 " aria-hidden="true" />
+              </div>
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
@@ -205,14 +208,9 @@ const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
       <Button data-testid="save" variant="primary" className={styles.saveButton} onClick={saveChangesHandler}>
         {t('pages.eDocsConversionView.saveChangesButton')}
       </Button>
-      <Button
-        data-testid="policies-to-switch-button"
-        className={styles.switchButton}
-        onClick={handleSwitchButtonClick}
-        variant="primaryOutline"
-      >
+      <Link data-testid="policies-to-switch-button" className={styles.switchButton} onClick={handleSwitchButtonClick}>
         {t('pages.eDocsConversionView.choosePoliciesButton')}
-      </Button>
+      </Link>
     </div>
   );
 
