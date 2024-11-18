@@ -27,7 +27,9 @@ import { ChromaProps, moduleInfo, withChroma } from '../../utils';
 import { useNavigate } from 'react-router-dom';
 import { EDocsConversionProps } from '../../models/EdocsConversion';
 import { Link } from '@iag/chroma-react-ui.link';
-
+import styles from './EDocsConversionView.module.css';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line react/prop-types
 const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
   const { t } = useTranslation();
   const [isError, setIsError] = useState<boolean>(false);
@@ -50,15 +52,6 @@ const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
 
   const toggleNote = () => {
     setIsNoteExpanded(!isNoteExpanded);
-    trackingEventWrapper(appState, globalEventsContext, {
-      pageName: PageName.DASHBOARD,
-      interaction: Interaction.CLICK,
-      element: {
-        form: FormName.EDOCS_MODAL,
-        name: isNoteExpanded ? 'COLLAPSE_NOTE' : 'EXPAND_NOTE',
-        type: ElementType.BUTTON,
-      },
-    });
   };
 
   const handleConsent = (_: React.ChangeEvent<HTMLInputElement>, value: string[]): void => {
@@ -138,13 +131,15 @@ const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
 
   const EligiblePoliciesNote = () => (
     <div className="w-full">
-      <button 
-        onClick={toggleNote} 
-        aria-expanded={isNoteExpanded} 
+      <button
+        onClick={toggleNote}
+        aria-expanded={isNoteExpanded}
         aria-controls="eligiblePoliciesNote"
         className="w-full"
       >
-        <div className="text-base text-center mx-14 p-3.5">
+        {/* <p className="font-medium">{t('pages.eDocsConversionView.noteOnEligiblePoliciesTitle')}</p> */}
+        <p>Note: applies to eligible policies only.</p>
+        <div className="text-base text-left p-3.5">
           <span className={`text-sm text-gray-600 ${!isNoteExpanded ? 'underline' : ''}`}>
             {!isNoteExpanded && t('pages.eDocsConversionView.readNote')}
           </span>
@@ -154,10 +149,9 @@ const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
       {isNoteExpanded && (
         <>
           <div id="eligiblePoliciesNote" className="text-gray-600 leading-relaxed px-4">
-            <p className="font-medium">{t('pages.eDocsConversionView.noteOnEligiblePoliciesTitle')}</p>
             <p className="font-normal">{t('pages.eDocsConversionView.noteOnEligiblePolicies')}</p>
             <button onClick={toggleNote} className="mt-4 flex items-center text-sm text-gray-600 w-full">
-              <div className="flex text-base text-center mx-24">
+              <div className="flex text-base text-left">
                 <p className="underline">{t('pages.eDocsConversionView.showLess')}</p>
                 <i className="i-minus-circle text-gray-500 text-lg self-center px-1" aria-hidden="true" />
               </div>
@@ -169,35 +163,28 @@ const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
   );
 
   const mainContent = () => (
-    <div id="edocs-conversion-view" className="w-full max-w-2xl mx-auto">
-      <div className="flex flex-col items-center mb-6">
-        <img src={eDocsImage} alt="eDocs conversion image" className="w-72 h-64" />
-        <p className="text-2xl font-semibold text-center mt-4">
-          {t('pages.eDocsConversionView.bannerText')}
-        </p>
+    <div id="edocs-conversion-view" className="w-full max-w-2xl mx-auto bg-neutral">
+      <div className={styles.flexCenter}>
+        <img src={eDocsImage} alt="eDocs conversion image" width="283px" height="256px" />
+        <p className={styles.bannerText}>{t('pages.eDocsConversionView.bannerText')}</p>
       </div>
-      
-      {/* Tailwind Card */}
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <div className="text-base text-gray-700 mb-6">
-          {t('pages.eDocsConversionView.bodyText')}
-        </div>
-        
-        <div className="mb-2 text-sm font-medium">
-          {t('pages.eDocsConversionView.inputLabelText')}
-        </div>
-        
+
+      {/* Card */}
+      <div className="bg-white rounded-600 shadow-sm p-6 mb-6 m-5">
+        <p className={styles.bodyText}>{t('pages.eDocsConversionView.bodyText')}</p>
+
+        <div className={styles.inputLabel}>{t('pages.eDocsConversionView.inputLabelText')}</div>
+
         <Input
           id="input-email"
           datatest-id="input-email"
-          className="w-full mb-6"
+          className={styles.inputEmail}
           value={eDocProps.primaryEmail}
           placeholder="Email address"
-          onChange={noop}
+          onChange={noop} // disabled
           disabled
         />
-        
-        <div className="space-y-4">
+        <div className={styles.consent}>
           <Checkbox
             id="edocsConsent"
             name="edocsConsent"
@@ -214,29 +201,20 @@ const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
             error={!!consentError}
           />
           {!!consentError && (
-            <Message variant="error" className="mt-2">
+            <Message className={styles.errorOA} variant="error">
               {consentError}
             </Message>
           )}
           <EligiblePoliciesNote />
         </div>
       </div>
-      
+
       <div className="flex flex-col items-center gap-4">
-        <Button 
-          data-testid="save" 
-          variant="primary" 
-          onClick={saveChangesHandler}
-          className="w-full max-w-md"
-        >
+        <Button data-testid="save" variant="primary" className={styles.saveButton} onClick={saveChangesHandler}>
           {t('pages.eDocsConversionView.saveChangesButton')}
         </Button>
-        
-        <Link 
-          data-testid="policies-to-switch-button"
-          onClick={handleSwitchButtonClick}
-          className="text-blue-600 hover:text-blue-700 underline text-center"
-        >
+
+        <Link data-testid="policies-to-switch-button" className={styles.switchButton} onClick={handleSwitchButtonClick}>
           {t('pages.eDocsConversionView.choosePoliciesButton')}
         </Link>
       </div>
@@ -245,14 +223,14 @@ const EDocsConversionView = (eDocProps: EDocsConversionProps) => {
 
   if (isLoading)
     return (
-      <div className="flex flex-col items-center justify-center p-8">
-        <Spinner id="basicSpinner" data-testid="testId" className="mb-4" />
-        <p className="text-gray-600">{t('pages.eDocsConversionView.loaderText')}</p>
+      <div>
+        <Spinner className={styles.edocsSpinner} id="basicSpinner" data-testid="testId" />
+        <p className={styles.loaderText}> {t('pages.eDocsConversionView.loaderText')}</p>
       </div>
     );
 
   if (error || isError) {
-    return <div className="text-red-600 p-4">{t('pages.eDocsConversionView.errorText')}</div>;
+    return <div>{t('pages.eDocsConversionView.errorText')}</div>;
   }
 
   return mainContent();
