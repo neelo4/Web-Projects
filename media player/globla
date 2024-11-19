@@ -1,0 +1,270 @@
+import React, { useCallback, useContext, useEffect, useMemo, useRef } from 'react';
+import { GlobalEventsContext } from '@iag-common/mfe-global-events-context';
+import { GlobalEventsContextValue } from './GlobalEventsContextValue';
+import { SplayOnce, LoggingTarget, GlobalEventsContextExtra } from './fundamentalTypes';
+import { Optional } from './typeUtils';
+import { extractMandatoryTrackingContext } from './eventUtils';
+import { getTrackingInterceptor, useTrackingEventHandler } from './trackingEvent';
+import {
+  getLoggingInterceptor,
+  LoggingEventDispatchCallback,
+  useLoggingEventHandler,
+  getWindowLoggingEventHandler,
+  getLogNoticer,
+} from './loggingEvent';
+import { ErrorBoundary } from './ErrorBoundary';
+import { resetterReducer } from './GlobalEventsResetter';
+
+/**
+ * Function for merging parent context and props into new context.
+ * @category Props and Args
+ **/
+export type ValueReducer = (
+  higherGlobalEventsContext: GlobalEventsContextValue,
+  options: GlobalEventsProviderProps,
+) => GlobalEventsContextValue;
+
+/** Props specific to GlobalEventsProvider, allowing users to customise its behaviour.
+ * @category Props and Args
+ * @public */
+export interface GlobalEventsProviderSpecificProps {
+  /**
+   * Component to render in the event of a render error. */
+  errorFallback?: React.ReactNode;
+  /**
+   * Callback that will be called whenever a logging event is dispatched to New Relic. */
+  loggingEventDispatchCallback?: LoggingEventDispatchCallback;
+  /**
+   * Function to override default behaviour for merging parent context and props into
+   * new context. */
+  valueReducer?: ValueReducer;
+  /** If provided, and `true`, will prevent a React Error Boundary from being rendered. */
+  omitErrorBoundary?: boolean;
+  /**
+   * If provided, and `true`, will save the parent context and put it in `extra.higherContext`
+   * in the child context. */
+  saveHigherContext?: boolean;
+  /**
+   * Headerless Log API endpoint generated in New Relic and GUID of New Relic Browser
+   * Agent application entity. If not provided, all logging will be manifested as JS errors. */
+  loggingTarget?: LoggingTarget;
+}
+
+/**
+ * Props for {@link GlobalEventsProvider}.
+ *
+ * See also:
+ * {@link GlobalEventsContextValue}
+ * {@link GlobalEventsProviderSpecificProps}
+ * @category Props and Args
+ * @interface
+ * @public */
+export type GlobalEventsProviderProps = SplayOnce<
+  Optional<Omit<GlobalEventsContextValue, 'isDefault' | 'extra'>, 'ancestors'> &
+    GlobalEventsProviderSpecificProps & {
+      children?: React.ReactNode;
+    }
+>;
+
+const kebabify = (input: string) => {
+  return input.replace(/[A-Z]+(?![a-z])|[A-Z]/g, (match, offset) => (offset ? '-' : '') + match.toLowerCase());
+};
+
+const getNewAncestors = (enclosingContext: GlobalEventsContextValue, moduleName: string) => {
+  return enclosingContext.moduleName === moduleName
+    ? enclosingContext.ancestors
+    : enclosingContext.ancestors.concat([enclosingContext.moduleName]);
+};
+
+/**
+ */
+const handlePassthrough = (
+  enclosingContext: GlobalEventsContextValue,
+  saveHigherContext?: boolean,
+): [GlobalEventsContextValue, GlobalEventsContextExtra] => {
+  const { loggingTarget: _, ...extra }: GlobalEventsContextExtra = enclosingContext.extra ?? {};
+  // If we're a passthrough component
+  if (saveHigherContext) {
+    // If the enclosing context was also a passthrough, then we do nothing, preserving
+    // the passthrough value inside `extra` for a descendant, otherwise we're the first passthrough in the chain
+    // and we save our enclosing context into `extra`
+    if (extra?.higherContext === undefined) {
+      const { extra: _, ...higherContextWithoutExtra } = enclosingContext;
+      extra.higherContext = higherContextWithoutExtra;
+    }
+    return [enclosingContext, extra];
+  } else {
+    // If we're not a passthrough, we do a reset on any passthrough
+    // info passed down to us
+    return [resetterReducer(enclosingContext), extra];
+  }
+};
+
+/**
+ * Takes a parent context, and props for a GlobalEventsProvider, and derives a new context.
+ * @category Utilities
+ * @public */
+export const defaultValueReducer: ValueReducer = (
+  rawEnclosingContext,
+  {
+    moduleName: propsModuleName,
+    moduleVersion,
+    componentName: propsComponentName,
+    pageName: propsPageName,
+    ancestors: propsAncestors,
+    saveHigherContext,
+    loggingTarget,
+  },
+): GlobalEventsContextValue => {
+  const isRoot = rawEnclosingContext.isDefault;
+  const [enclosingContext, extra] = handlePassthrough(rawEnclosingContext, saveHigherContext);
+
+  // moduleName and componentName must match /^[a-z][a-z0-9]+(-[a-z0-9]+)*$/
+  const moduleName = kebabify(propsModuleName);
+  const componentName = kebabify(propsComponentName);
+  const ancestors = propsAncestors ?? (isRoot ? [] : getNewAncestors(enclosingContext, moduleName));
+  const pageName = propsPageName ? propsPageName : enclosingContext.pageName;
+
+  // TODO: appendPageName
+  // If pageName is the default '' by this point then it was not supplied at the root
+  if (pageName === '') {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `Blank page name at root GlobalEventsProvider for Component: ` +
+        `"${componentName}" in module "${moduleName}" with ancestors ${JSON.stringify(ancestors)}`,
+    );
+  }
+
+  if (loggingTarget) {
+    extra.loggingTarget = loggingTarget;
+  }
+
+  const contextValue: GlobalEventsContextValue = {
+    ancestors,
+    moduleName,
+    moduleVersion,
+    componentName,
+    pageName,
+    isDefault: false,
+    extra,
+  };
+  if (isRoot) {
+    contextValue.isRoot = true;
+  }
+  return contextValue;
+};
+
+/**
+ * Context provider which allows child components to access information about where
+ * they were imported from, enabling tracking and logging events to include this information.
+ * Intercepts CustomEvents of type "tracking" and "logging" as they bubble up and
+ * automatically dispatches them to the analytics or observability services as appropriate.
+ * NOTE: You won't need to use this directly if you're an MFE developer, in which case you're
+ * looking for the {@link withGlobalEvents} wrapper.
+ * This component is for host applications, or for demo apps you use to test your MFE components.
+ * @category Core Components
+ * @public
+ * @example
+ * ```tsx
+ * const HostApp = () => {
+ *   return <GlobalEventsProvider
+ *     moduleName={"host-app"}
+ *     moduleVersion={"0.0.1"}
+ *     pageName={"/my-host-app/home"}
+ *     >
+         <MyWrapper>
+           <MyNavBar />
+           <MyContent />
+         </MyWrapper>
+ *     </GlobalEventsProvider>
+ * };
+ * ```
+ **/
+export const GlobalEventsProvider = (props: GlobalEventsProviderProps) => {
+  const {
+    componentName,
+    moduleName,
+    valueReducer: propsValueReducer,
+    children: propsChildren,
+    omitErrorBoundary,
+    errorFallback,
+    loggingEventDispatchCallback,
+    loggingTarget,
+  } = props;
+
+  const enclosingContext = useContext(GlobalEventsContext);
+  const valueReducer = useCallback(
+    (hgec: GlobalEventsContextValue, options: GlobalEventsProviderProps) => {
+      return (propsValueReducer ?? defaultValueReducer)(hgec, options);
+    },
+    [propsValueReducer],
+  );
+  const globalEventsValue = useMemo(
+    () => valueReducer(enclosingContext, props),
+    [enclosingContext, props, valueReducer],
+  );
+
+  // higherGlobalEventsContext: GlobalEventsContextValue,
+  // options: GlobalEventsProviderProps,
+  const isRoot = globalEventsValue.isRoot ?? false;
+
+  const ref = useRef<HTMLDivElement | null>(null);
+  const mandatoryTrackingDetail = extractMandatoryTrackingContext(globalEventsValue);
+  const trackingEventHandler = getTrackingInterceptor(mandatoryTrackingDetail);
+  const loggingEventHandler = getLoggingInterceptor(mandatoryTrackingDetail, loggingTarget);
+  // Interceptors are always conditional on events not having been previously intercepted,
+  // so supply `false` to useTrackingEventHandler to avoid duplicate checks
+  useTrackingEventHandler(ref, trackingEventHandler, false);
+  useLoggingEventHandler(ref, loggingEventHandler, false);
+  useEffect(() => {
+    if (isRoot) {
+      if (loggingEventDispatchCallback && !window.__loggingEventDispatchCallback) {
+        window.__loggingEventDispatchCallback = loggingEventDispatchCallback;
+      }
+      if (loggingTarget && !window.__noticeLog) {
+        window.__noticeLog = getLogNoticer(loggingTarget);
+      }
+      const windowLoggingEventHandler = getWindowLoggingEventHandler();
+      window.addEventListener('logging', windowLoggingEventHandler);
+      return () => {
+        window.removeEventListener('logging', windowLoggingEventHandler);
+      };
+    } else {
+      return () => {
+        // Do nothing
+      };
+    }
+  });
+
+  // This has to follow all the hooks
+  if (propsChildren === undefined || propsChildren === null) {
+    return null;
+  }
+
+  // If moduleName is the default '' by this point then it was not supplied at the root
+  if (moduleName === '') {
+    // eslint-disable-next-line no-console
+    console.warn(`Blank moduleName at root GlobalEventsProvider for Component: ${componentName}"`);
+  }
+
+  const children = (
+    typeof propsChildren === 'function' ? propsChildren(globalEventsValue) : propsChildren
+  ) as React.ReactNode;
+
+  const insides = omitErrorBoundary ? (
+    children
+  ) : (
+    <ErrorBoundary loggingRef={ref} fallback={errorFallback}>
+      {children}
+    </ErrorBoundary>
+  );
+
+  return (
+    <GlobalEventsContext.Provider value={globalEventsValue}>
+      <div ref={ref}>{insides}</div>
+    </GlobalEventsContext.Provider>
+  );
+};
+
+type A = typeof GlobalEventsProvider extends React.FC<GlobalEventsProviderProps> ? true : never;
+export const _true1: A = true;
