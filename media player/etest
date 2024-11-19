@@ -1,77 +1,60 @@
 const mainContent = () => (
-  <div id="edocs-conversion-view" className="w-full bg-neutral p-6">
-    <div className="max-w-2xl mx-auto">
-      {/* Banner section outside card */}
-      <div className="flex flex-col items-center mb-6">
-        <img src={eDocsImage} alt="eDocs conversion image" width="283" height="256" />
+    <div id="edocs-conversion-view" className="bg-neutral">
+      <div className={styles.flexCenter}>
+        <img src={eDocsImage} alt="eDocs conversion image" width="283px" height="256px" />
         <p className={styles.bannerText}>{t('pages.eDocsConversionView.bannerText')}</p>
       </div>
-
-      {/* Card content */}
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <div className="text-base text-gray-700 mb-6">
-          {t('pages.eDocsConversionView.bodyText')}
-        </div>
-
-        <div className="mb-2 text-sm font-medium">
-          {t('pages.eDocsConversionView.inputLabelText')}
-        </div>
-
-        <Input
-          id="input-email"
-          data-testid="input-email"
-          className={styles.inputEmail}
-          value={eDocProps.primaryEmail}
-          placeholder="Email address"
-          onChange={noop}
-          disabled
-        />
-
-        <div className={styles.consent}>
-          <Checkbox
-            id="edocsConsent"
-            name="edocsConsent"
-            aria-label="edocsConsent"
-            value={consent}
-            variant="block"
-            onChange={handleConsent}
-            options={[
-              {
-                label: <p>{t('pages.eDocsConversionView.checkboxLabelText')}</p>,
-                value: VALUE_EDOC_CONSENT,
-              },
-            ]}
-            error={!!consentError}
+      
+      {/* Card wrapper */}
+      <div className="bg-white rounded-lg shadow-sm m-5">
+        <div className="p-6">
+          <p className={styles.bodyText}>{t('pages.eDocsConversionView.bodyText')}</p>
+          <div className={styles.inputLabel}>{t('pages.eDocsConversionView.inputLabelText')}</div>
+          <Input
+            id="input-email"
+            data-testid="input-email"
+            className={styles.inputEmail}
+            value={eDocProps.primaryEmail}
+            placeholder="Email address"
+            onChange={noop}
+            disabled
           />
-          {!!consentError && (
-            <Message className={styles.errorOA} variant="error">
-              {consentError}
-            </Message>
-          )}
-          <EligiblePoliciesNote />
+          <div className={styles.consent}>
+            <Checkbox
+              id="edocsConsent"
+              name="edocsConsent"
+              aria-label="edocsConsent"
+              value={consent}
+              variant="block"
+              onChange={handleConsent}
+              options={[
+                {
+                  label: <p>{t('pages.eDocsConversionView.checkboxLabelText')}</p>,
+                  value: VALUE_EDOC_CONSENT,
+                },
+              ]}
+              error={!!consentError}
+            />
+            {!!consentError && (
+              <Message className={styles.errorOA} variant="error">
+                {consentError}
+              </Message>
+            )}
+            <EligiblePoliciesNote />
+          </div>
         </div>
       </div>
 
-      {/* Buttons outside card */}
-      <div className="flex flex-col items-center gap-4">
-        <Button 
-          data-testid="save" 
-          variant="primary" 
-          className={styles.saveButton} 
-          onClick={saveChangesHandler}
-        >
-          {t('pages.eDocsConversionView.saveChangesButton')}
-        </Button>
-        
-        <Button
-          data-testid="policies-to-switch-button"
-          className={styles.switchButton}
-          onClick={handleSwitchButtonClick}
-          variant="primaryOutline"
-        >
-          {t('pages.eDocsConversionView.choosePoliciesButton')}
-        </Button>
-      </div>
+      <Button data-testid="save" variant="primary" className={styles.saveButton} onClick={saveChangesHandler}>
+        {t('pages.eDocsConversionView.saveChangesButton')}
+      </Button>
+      <Button
+        data-testid="policies-to-switch-button"
+        className={styles.switchButton}
+        onClick={handleSwitchButtonClick}
+        variant="primaryOutline"
+      >
+        {t('pages.eDocsConversionView.choosePoliciesButton')}
+      </Button>
     </div>
-  </div>
 );
