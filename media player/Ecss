@@ -3,28 +3,27 @@
 @tailwind utilities;
 
 .flexCenter {
-  @apply flex flex-col items-center;
+  @apply flex flex-col items-center w-full max-w-2xl mx-auto;
 }
 
 .bannerText {
-  @apply text-primary font-medium text-2xl;
+  @apply text-primary font-medium text-2xl text-center mx-auto px-5 mb-6;
 }
 
 .bodyText {
-  @apply text-base text-left font-semibold;
+  @apply text-base text-left font-semibold px-4;
 }
 
 .inputLabel {
-  @apply text-base font-semibold m-2.5 ml-[18px];
+  @apply text-base font-semibold m-2.5 px-4;
 }
 
 .inputEmail {
-  @apply border-0 mt-3;
+  @apply border-0 mt-3 mx-4 w-[calc(100%-2rem)];
 }
 
 .consent {
-  @apply mt-4 ml-[10px];
-
+  @apply mt-4 px-4;
   :checked + label {
     @apply text-primary;
   }
@@ -35,11 +34,11 @@
 }
 
 .saveButton {
-  @apply w-full m-3;
+  @apply w-[calc(100%-2rem)] mx-4 my-3;
 }
 
 .switchButton {
-  @apply w-full text-base text-center m-7 p-7;
+  @apply w-full text-base text-center my-4;
 }
 
 .loaderText {
@@ -49,12 +48,19 @@
 .edocsSpinner {
   @apply left-1/2;
 }
+
 .bodyDetails2 {
   @apply mt-3 text-primary text-sm;
 }
+
 .readIcon {
   color: var(--button-interactive-text-inverse-active-color);
 }
-.bodyDetails2 {
-  @apply mt-3 text-primary text-sm;
+
+.contentWrapper {
+  @apply max-w-2xl mx-auto w-full;
+}
+
+.cardWrapper {
+  @apply bg-white rounded-lg shadow-xl mx-4 border border-neutral;
 }
