@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.flexCenter {
+  @apply flex flex-col items-center;
+}
+
+.bannerText {
+  @apply text-primary font-medium text-2xl;
+}
+
+.bodyText {
+  @apply text-base text-left font-semibold;
+}
+
+.inputLabel {
+  @apply text-base font-semibold m-2.5 ml-[18px];
+}
+
+.inputEmail {
+  @apply border-0 mt-3;
+}
+
+.consent {
+  @apply mt-4 ml-[10px];
+
+  :checked + label {
+    @apply text-primary;
+  }
+}
+
+.errorOA {
+  @apply mt-2 text-error items-baseline text-base;
+}
+
+.saveButton {
+  @apply w-full m-3;
+}
+
+.switchButton {
+  @apply w-full text-base text-center m-7 p-7;
+}
+
+.loaderText {
+  @apply text-base text-center mt-4;
+}
+
+.edocsSpinner {
+  @apply left-1/2;
+}
+.bodyDetails2 {
+  @apply mt-3 text-primary text-sm;
+}
+.readIcon {
+  color: var(--button-interactive-text-inverse-active-color);
+}
+.bodyDetails2 {
+  @apply mt-3 text-primary text-sm;
+}
