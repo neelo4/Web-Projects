@@ -7,7 +7,8 @@
 }
 
 .bannerText {
-  @apply text-primary font-medium text-2xl text-center mx-auto px-5 mb-6;
+  @apply text-primary font-medium text-2xl text-center whitespace-nowrap px-5 mb-6;
+  /* Added whitespace-nowrap to prevent text wrapping */
 }
 
 .bodyText {
@@ -63,4 +64,9 @@
 
 .cardWrapper {
   @apply bg-white rounded-lg shadow-xl mx-4 border border-neutral;
+}
+
+/* Added new class for the header container to maintain consistent width */
+.headerContainer {
+  @apply w-full max-w-2xl mx-auto px-4;
 }
