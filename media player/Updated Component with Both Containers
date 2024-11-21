@@ -1,0 +1,40 @@
+const mainContent = () => (
+    <div id="edocs-conversion-view" className="w-full bg-neutral p-4">
+      {/* Header section */}
+      <div className={styles.headerContainer}>
+        <div className={styles.flexCenter}>
+          <img src={eDocsImage} alt="eDocs conversion image" width="200px" height="200px" className="mb-4" />
+          <p className={styles.bannerText}>{t('pages.eDocsConversionView.bannerText')}</p>
+        </div>
+      </div>
+
+      {/* Main content section */}
+      <div className={styles.contentWrapper}>
+        <div className={styles.cardWrapper}>
+          <div className="p-6">
+            <p className={styles.bodyText}>{t('pages.eDocsConversionView.bodyText')}</p>
+
+            <Input
+              id="input-email"
+              data-testid="input-email"
+              className={styles.inputEmail}
+              value={eDocProps.primaryEmail}
+              placeholder="Email address"
+              onChange={noop}
+              disabled
+            />
+            {/* Rest of the card content */}
+          </div>
+        </div>
+
+        <div className="px-4 mt-4">
+          <Button data-testid="save" variant="primary" className={styles.saveButton} onClick={saveChangesHandler}>
+            {t('pages.eDocsConversionView.saveChangesButton')}
+          </Button>
+          <Link data-testid="policies-to-switch-button" onClick={handleSwitchButtonClick}>
+            <span className={styles.switchButton}>{t('pages.eDocsConversionView.choosePoliciesButton')}</span>
+          </Link>
+        </div>
+      </div>
+    </div>
+);
