@@ -2,13 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+.headerContainer {
+  @apply w-full max-w-2xl mx-auto px-4;
+}
+
+.contentWrapper {
+  @apply max-w-2xl mx-auto w-full;
+}
+
 .flexCenter {
   @apply flex flex-col items-center w-full max-w-2xl mx-auto;
 }
 
 .bannerText {
   @apply text-primary font-medium text-2xl text-center whitespace-nowrap px-5 mb-6;
-  /* Added whitespace-nowrap to prevent text wrapping */
 }
 
 .bodyText {
@@ -39,7 +46,7 @@
 }
 
 .switchButton {
-  @apply w-full text-base text-center my-4;
+  @apply block w-full text-base text-center text-primary underline my-4;
 }
 
 .loaderText {
@@ -58,15 +65,10 @@
   color: var(--button-interactive-text-inverse-active-color);
 }
 
-.contentWrapper {
-  @apply max-w-2xl mx-auto w-full;
-}
-
 .cardWrapper {
   @apply bg-white rounded-lg shadow-xl mx-4 border border-neutral;
 }
 
-/* Added new class for the header container to maintain consistent width */
-.headerContainer {
-  @apply w-full max-w-2xl mx-auto px-4;
+.buttonContainer {
+  @apply flex flex-col items-center w-full px-4 mt-4;
 }
