@@ -1,0 +1,93 @@
+// Only showing the mainContent function as that's where we need to make style changes
+const mainContent = () => (
+    <div id="edocs-conversion-view" className="w-full bg-neutral p-4">
+      <div className="contentWrapper">
+        <div className={styles.flexCenter}>
+          <img src={eDocsImage} alt="eDocs conversion image" width="200px" height="200px" className="mb-4" />
+          <p className={styles.bannerText}>{t('pages.eDocsConversionView.bannerText')}</p>
+        </div>
+        
+        {/* Card wrapper */}
+        <div className={styles.cardWrapper}>
+          <div className="p-6">
+            <p className={styles.bodyText}>{t('pages.eDocsConversionView.bodyText')}</p>
+
+            <Input
+              id="input-email"
+              data-testid="input-email"
+              className={styles.inputEmail}
+              value={eDocProps.primaryEmail}
+              placeholder="Email address"
+              onChange={noop}
+              disabled
+            />
+            <div className={styles.consent}>
+              <Checkbox
+                id="edocsConsent"
+                name="edocsConsent"
+                aria-label="edocsConsent"
+                value={consent}
+                variant="block"
+                onChange={handleConsent}
+                options={[
+                  {
+                    label: <p>{t('pages.eDocsConversionView.checkboxLabelText')}</p>,
+                    value: VALUE_EDOC_CONSENT,
+                  },
+                ]}
+                error={!!consentError}
+              />
+              {!!consentError && (
+                <Message className={styles.errorOA} variant="error">
+                  {consentError}
+                </Message>
+              )}
+              <div className="w-full px-4">
+                <p className="mb-1">Note: applies to eligible policies only.</p>
+                <Link data-testid="read-more-note-link" onClick={toggleNote}>
+                  {!isNoteExpanded && (
+                    <span className={styles.bodyDetails2}>
+                      {t('pages.eDocsConversionView.readNote')}{' '}
+                      <Icon className={`i-plus-circle self-center p-1 ${styles.readIcon}`}></Icon>
+                    </span>
+                  )}
+                </Link>
+                {isNoteExpanded && (
+                  <>
+                    <div id="eligiblePoliciesNote" className="text-gray-600 leading-relaxed">
+                      <p className="font-normal">
+                        {t('pages.eDocsConversionView.noteOnEligiblePolicies')}{' '}
+                        <Link href={`tel:${t('constants.phoneNumber')}`} data-testid="contact-us-policy-correspondence">
+                          <span className={styles.bodyDetails2}>
+                            {t('pages.onboardingEDocsConversionView.contactUsLink1')}
+                          </span>
+                        </Link>{' '}
+                        .
+                      </p>
+                      <p className={styles.bodyDetails2}>
+                        <Link data-test-id="show-less-note-link" onClick={toggleNote}>
+                          <span className={styles.bodyDetails2}>
+                            {t('pages.eDocsConversionView.showLess')}{' '}
+                            <Icon className={`i-minus-circle self-center p-1 ${styles.readIcon}`}></Icon>
+                          </span>
+                        </Link>
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="px-4 mt-4">
+          <Button data-testid="save" variant="primary" className={styles.saveButton} onClick={saveChangesHandler}>
+            {t('pages.eDocsConversionView.saveChangesButton')}
+          </Button>
+          <Link data-testid="policies-to-switch-button" onClick={handleSwitchButtonClick}>
+            <span className={styles.switchButton}>{t('pages.eDocsConversionView.choosePoliciesButton')}</span>
+          </Link>
+        </div>
+      </div>
+    </div>
+);
