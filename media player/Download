@@ -1,156 +1,63 @@
-import { screen } from '@testing-library/react';
-import React from 'react';
-import { render } from '../../../../test-utils/renderWithProviders';
-import DownloadAppSection from './DownloadAppSection';
-import {
-  GOOGLE_PLAY_STORE_URL,
-  IOS_APP_STORE_URL,
-} from '../../../components/shared/Constants';
+import { gql } from '@apollo/client';
+import _ from 'lodash';
+import { useContext, useEffect } from 'react';
+import { AppContext, AppState } from '../../AppContext';
+import { ONBOARDING_KEY } from '../../components/shared/Constants';
+import { FeatureName, useFeaturesConfig } from '../../features-config';
+import { mapOnboardingorEdocsStatus } from '../../mappers/mapOnboardingOrEdocsDetails';
+import { OnboardingAndEdocsStatus } from '../../models/OnboardingModule';
+import { getActivePolicyStatus } from '../../models/PolicyStatus';
+import { ElementType, Interaction } from '../../models/SiteTracking';
+import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
+import useBrowserDetect from '../useBrowserDetect';
+import { useApiQuery } from './useApi';
 
-// Mock the image imports
-jest.mock('../../../assets/images/app-icon.svg', () => 'mock-app-icon-path');
-jest.mock('../../../assets/images/NRMA-qr-code.svg', () => 'mock-qr-code-path');
-jest.mock('../../../components/shared/Constants', () => ({
-  GOOGLE_PLAY_STORE_IMG: 'mock-google-play-img',
-  GOOGLE_PLAY_STORE_URL: 'https://play.google.com/store/mock',
-  IOS_APP_STORE_IMG: 'mock-ios-store-img',
-  IOS_APP_STORE_URL: 'https://apps.apple.com/mock',
-}));
+const GET_ONBOARDING_OR_EDOCS_STATUS = () => gql`
+  query getOnboardingAndEdocsStatus($policy_statuses: [String]) {
+    getOnboardingAndEdocsStatus(policyStatuses: $policy_statuses)
+  }
+`;
 
-describe('DownloadAppSection', () => {
-  beforeEach(() => {
-    // Reset any mocks before each test
-    jest.clearAllMocks();
-    
-    // Mock window.matchMedia for responsive design testing
-    window.matchMedia = jest.fn().mockImplementation(query => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: jest.fn(),
-      removeListener: jest.fn(),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      dispatchEvent: jest.fn(),
-    }));
+export const useGetOnboardingAndEdocsDetails = (
+  setOnboardingAndEdocsResult: (data: OnboardingAndEdocsStatus) => void,
+) => {
+  const { setAppState } = useContext(AppContext);
+  const showOnboardingModule = useFeaturesConfig(FeatureName.SHOW_DOOTB_ONBOARDING);
+  const showEdocsModal = useFeaturesConfig(FeatureName.SHOW_DOOTB_EDOCS_MODAL);
+  const { isMobileApp } = useBrowserDetect();
+  const savedState = sessionStorage.getItem(ONBOARDING_KEY);
+  const trackingEventContext = useContext(SiteTrackingContext);
+
+  const { data, loading, error } = useApiQuery(GET_ONBOARDING_OR_EDOCS_STATUS(), mapOnboardingorEdocsStatus, {
+    staleWhileRevalidate: true,
+    variables: {
+      policy_statuses: getActivePolicyStatus(),
+    },
+    skip: isMobileApp || !!savedState || (!showOnboardingModule && !showEdocsModal),
+    onCompleted: (data) => {
+      if (!!data?.getOnboardingAndEdocsStatus) {
+        setAppState((prev: AppState) => ({
+          ...prev,
+          onboardingAndEdocsResult: _.omit(data?.getOnboardingAndEdocsStatus, 'policies'),
+        }));
+      }
+    },
   });
 
-  it('renders the component with all essential elements', () => {
-    render(<DownloadAppSection />);
+  useEffect(() => {
+    setOnboardingAndEdocsResult({ ...data, ...{ isLoading: loading } });
 
-    // Verify main container
-    expect(screen.getByTestId('download-app-section')).toBeInTheDocument();
+    if (data?.eDocsStatus) {
+      trackingEventContext.dispatch({
+        interaction: Interaction.HIDE,
+        element: {
+          name: 'skip-onboarding',
+          value: 'edocs-enabled',
+          type: ElementType.MESSAGE,
+        },
+      });
+    }
+  }, [loading, data]);
 
-    // Verify title and description
-    expect(screen.getByTestId('download-app-title')).toBeInTheDocument();
-    expect(screen.getByTestId('download-app-details')).toBeInTheDocument();
-
-    // Verify app icon
-    expect(screen.getByAltText('download app icon')).toBeInTheDocument();
-  });
-
-  it('renders app store links with correct URLs', () => {
-    render(<DownloadAppSection />);
-
-    // Check iOS App Store link
-    const iosLink = screen.getByTestId('nrma-app-ios');
-    expect(iosLink).toHaveAttribute('href', IOS_APP_STORE_URL);
-    expect(iosLink).toHaveAttribute('target', '_blank');
-    expect(iosLink).toHaveAttribute('rel', 'noreferrer');
-
-    // Check Google Play Store link
-    const googleLink = screen.getByTestId('nrma-app-google');
-    expect(googleLink).toHaveAttribute('href', GOOGLE_PLAY_STORE_URL);
-    expect(googleLink).toHaveAttribute('target', '_blank');
-    expect(googleLink).toHaveAttribute('rel', 'noreferrer');
-  });
-
-  it('renders app store images with correct attributes', () => {
-    render(<DownloadAppSection />);
-
-    // Check iOS App Store image
-    const iosImage = screen.getByAltText('IOS App Store Image');
-    expect(iosImage).toBeInTheDocument();
-    expect(iosImage).toHaveClass('w-32', 'h-8', 'sm:w-24');
-
-    // Check Google Play Store image
-    const googleImage = screen.getByAltText('Google App Store Image');
-    expect(googleImage).toBeInTheDocument();
-    expect(googleImage).toHaveClass('w-32', 'h-8', 'sm:w-24');
-  });
-
-  it('renders QR code section on desktop view', () => {
-    // Mock matchMedia to simulate desktop view
-    window.matchMedia = jest.fn().mockImplementation(query => ({
-      matches: query === '(min-width: 768px)',
-      media: query,
-      onchange: null,
-      addListener: jest.fn(),
-      removeListener: jest.fn(),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      dispatchEvent: jest.fn(),
-    }));
-
-    render(<DownloadAppSection />);
-
-    // Check QR code image and description
-    const qrCodeImage = screen.getByTestId('nrma-qr-code');
-    expect(qrCodeImage).toBeInTheDocument();
-    expect(qrCodeImage).toHaveAttribute('alt', 'QR Code Image');
-    expect(qrCodeImage).toHaveClass('w-20', 'h-20', 'object-contain');
-
-    const qrCodeDescription = screen.getByTestId('nrma-qr-code-description');
-    expect(qrCodeDescription).toBeInTheDocument();
-    expect(qrCodeDescription).toHaveClass('text-xs', 'w-[104px]', 'h-11');
-  });
-
-  it('has correct responsive classes for mobile and desktop', () => {
-    render(<DownloadAppSection />);
-
-    // Check main container responsive classes
-    const container = screen.getByTestId('download-app-section');
-    expect(container).toHaveClass('flex', 'flex-col', 'sm:flex-row');
-
-    // Check title responsive classes
-    const title = screen.getByTestId('download-app-title');
-    expect(title).toHaveClass('text-lg', 'sm:pb-4');
-
-    // Check details responsive classes
-    const details = screen.getByTestId('download-app-details');
-    expect(details).toHaveClass('sm:pl-8', 'mt-1', 'sm:-mt-3');
-  });
-
-  it('verifies QR code container styling', () => {
-    render(<DownloadAppSection />);
-    
-    const qrCodeContainer = screen.getByTestId('nrma-qr-code').closest('div');
-    expect(qrCodeContainer).toHaveClass(
-      'flex',
-      'flex-row',
-      'gap-3',
-      'items-center',
-      'justify-center',
-      'border',
-      'border-primary-lighter',
-      'w-[238px]',
-      'h-22',
-      'rounded-md',
-      'md:flex',
-      'hidden'
-    );
-  });
-
-  it('checks accessibility attributes on links', () => {
-    render(<DownloadAppSection />);
-
-    const iosLink = screen.getByTestId('nrma-app-ios');
-    const googleLink = screen.getByTestId('nrma-app-google');
-
-    // Verify accessibility attributes
-    expect(iosLink).toHaveAttribute('rel', 'noreferrer');
-    expect(googleLink).toHaveAttribute('rel', 'noreferrer');
-    expect(iosLink).toHaveAttribute('target', '_blank');
-    expect(googleLink).toHaveAttribute('target', '_blank');
-  });
-});
+  return { data, loading, hasAuthenticationError: false, error };
+};
