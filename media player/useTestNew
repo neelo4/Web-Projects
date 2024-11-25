@@ -7,26 +7,28 @@ import { ONBOARDING_KEY } from '../../components/shared/Constants';
 import { useFeaturesConfig } from '../../features-config';
 import { getActivePolicyStatus } from '../../models/PolicyStatus';
 import { ElementType, Interaction } from '../../models/SiteTracking';
-import { SiteTrackingContext, TrackingEventContextInterface } from '../../sitetracking/SiteTrackingProvider';
+import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
 import useBrowserDetect from '../useBrowserDetect';
 import { useGetOnboardingAndEdocsDetails } from './useGetOnboardingAndEdocsDetails';
 
-// ... [keeping existing imports and mock setups]
+// Define response type for the GraphQL query
+interface OnboardingResponse {
+  getOnboardingAndEdocsStatus: {
+    showOnboarding: boolean;
+    showEdocs: boolean;
+    onboardingType: string;
+    eDocsStatus?: boolean;
+    policies: string[];
+  };
+}
 
 describe('useGetOnboardingAndEdocsDetails - Tracking Events', () => {
-  // Create mock tracking context with full interface implementation
-  const mockTrackingContext: TrackingEventContextInterface = {
-    dispatch: jest.fn(),
-    settlement: null,
-    pageview: null,
-    pageviewImmediately: null
-  };
+  const mockDispatch = jest.fn();
   
-  // Extended wrapper to include SiteTrackingContext with proper typing
   const createWrapperWithTracking = (mocks: any[] = []) => {
     const Wrapper: React.FC<WrapperProps> = ({ children }) => (
       <AppContext.Provider value={mockAppContextValue}>
-        <SiteTrackingContext.Provider value={mockTrackingContext}>
+        <SiteTrackingContext.Provider value={{ dispatch: mockDispatch }}>
           <MockedProvider mocks={mocks} addTypename={false}>
             {children}
           </MockedProvider>
@@ -44,9 +46,35 @@ describe('useGetOnboardingAndEdocsDetails - Tracking Events', () => {
     window.sessionStorage.clear();
   });
 
+  it('should not dispatch tracking event when data is undefined', async () => {
+    const mocks = [
+      {
+        request: {
+          query: ONBOARDING_QUERY,
+          variables: {
+            policy_statuses: ['ACTIVE'],
+          },
+        },
+        result: {
+          data: null as unknown as OnboardingResponse,
+        },
+      },
+    ];
+
+    const { result, waitFor } = renderHook(
+      () => useGetOnboardingAndEdocsDetails(mockAppState.setAppState),
+      {
+        wrapper: createWrapperWithTracking(mocks),
+      }
+    );
+
+    await waitFor(() => {
+      expect(mockDispatch).not.toHaveBeenCalled();
+    });
+  });
+
   it('should dispatch tracking event when eDocsStatus is true', async () => {
-    // Mock data with eDocsStatus
-    const mockOnboardingData = {
+    const mockOnboardingData: OnboardingResponse = {
       getOnboardingAndEdocsStatus: {
         showOnboarding: true,
         showEdocs: true,
@@ -78,8 +106,7 @@ describe('useGetOnboardingAndEdocsDetails - Tracking Events', () => {
     );
 
     await waitFor(() => {
-      // Verify tracking event was dispatched with correct parameters
-      expect(mockTrackingContext.dispatch).toHaveBeenCalledWith({
+      expect(mockDispatch).toHaveBeenCalledWith({
         interaction: Interaction.HIDE,
         element: {
           name: 'skip-onboarding',
@@ -91,7 +118,7 @@ describe('useGetOnboardingAndEdocsDetails - Tracking Events', () => {
   });
 
   it('should not dispatch tracking event when eDocsStatus is false', async () => {
-    const mockOnboardingData = {
+    const mockOnboardingData: OnboardingResponse = {
       getOnboardingAndEdocsStatus: {
         showOnboarding: true,
         showEdocs: false,
@@ -123,34 +150,7 @@ describe('useGetOnboardingAndEdocsDetails - Tracking Events', () => {
     );
 
     await waitFor(() => {
-      expect(mockTrackingContext.dispatch).not.toHaveBeenCalled();
-    });
-  });
-
-  it('should not dispatch tracking event when data is undefined', async () => {
-    const mocks = [
-      {
-        request: {
-          query: ONBOARDING_QUERY,
-          variables: {
-            policy_statuses: ['ACTIVE'],
-          },
-        },
-        result: {
-          data: null,
-        },
-      },
-    ];
-
-    const { result, waitFor } = renderHook(
-      () => useGetOnboardingAndEdocsDetails(mockAppState.setAppState),
-      {
-        wrapper: createWrapperWithTracking(mocks),
-      }
-    );
-
-    await waitFor(() => {
-      expect(mockTrackingContext.dispatch).not.toHaveBeenCalled();
+      expect(mockDispatch).not.toHaveBeenCalled();
     });
   });
 });
