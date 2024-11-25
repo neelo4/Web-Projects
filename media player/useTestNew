@@ -1,42 +1,148 @@
-it('should dispatch tracking event when eDocsStatus is true', async () => {
-  const mockOnboardingData = {
-    getOnboardingAndEdocsStatus: {
-      showOnboarding: true,
-      showEdocs: true,
-      onboardingType: 'GOB',
-      eDocsStatus: true,
-      policies: ['policy1']
-    },
+import { gql } from '@apollo/client';
+import { MockedProvider } from '@apollo/client/testing';
+import { renderHook, act } from '@testing-library/react-hooks';
+import React from 'react';
+import { AppContext } from '../../AppContext';
+import { ONBOARDING_KEY } from '../../components/shared/Constants';
+import { useFeaturesConfig } from '../../features-config';
+import { getActivePolicyStatus } from '../../models/PolicyStatus';
+import { ElementType, Interaction } from '../../models/SiteTracking';
+import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
+import useBrowserDetect from '../useBrowserDetect';
+import { useGetOnboardingAndEdocsDetails } from './useGetOnboardingAndEdocsDetails';
+
+jest.mock('./useApi', () => ({
+  useApiQuery: jest.fn(() => [jest.fn(), {}]),
+}));
+
+jest.mock('../../features-config', () => ({
+  useFeaturesConfig: jest.fn().mockReturnValue(false),
+  FeatureName: {
+    SHOW_DOOTB_ONBOARDING: 'SHOW_DOOTB_ONBOARDING',
+    SHOW_DOOTB_EDOCS_MODAL: 'SHOW_DOOTB_EDOCS_MODAL',
+  },
+}));
+
+const mockAppState = {
+  appState: {
+    externalReturnURL: 'return-url',
+    prefillId: 'prefill-id',
+  },
+  setAppState: jest.fn(),
+};
+
+// Mock dependencies
+jest.mock('../../features-config');
+jest.mock('../useBrowserDetect');
+jest.mock('../../models/PolicyStatus');
+
+const ONBOARDING_QUERY = gql`
+  query getOnboardingAndEdocsStatus($policy_statuses: [String]) {
+    getOnboardingAndEdocsStatus(policyStatuses: $policy_statuses)
+  }
+`;
+
+describe('useGetOnboardingAndEdocsDetails', () => {
+  const mockDispatch = jest.fn();
+  const mockSetAppState = jest.fn();
+
+  const mockAppContextValue = {
+    setAppState: mockSetAppState,
+    appState: {},
   };
 
-  const mocks = [
-    {
-      request: {
-        query: ONBOARDING_QUERY,
-        variables: {
-          policy_statuses: ['ACTIVE'],
-        },
-      },
-      result: {
-        data: mockOnboardingData,
-      },
-    },
-  ];
+  type WrapperProps = {
+    children: React.ReactNode;
+    mocks?: any[];
+  };
 
-  // Define the type for the rendered result
-  const { result, waitFor } = renderHook(
-    () => useGetOnboardingAndEdocsDetails(mockAppState.setAppState),
-    { wrapper: createWrapperWithTracking(mocks) }
-  );
+  const createWrapper = (mocks: any[] = []) => {
+    const Wrapper: React.FC<WrapperProps> = ({ children }) => (
+      <AppContext.Provider value={mockAppContextValue}>
+        <SiteTrackingContext.Provider value={{ dispatch: mockDispatch }}>
+          <MockedProvider mocks={mocks} addTypename={false}>
+            {children}
+          </MockedProvider>
+        </SiteTrackingContext.Provider>
+      </AppContext.Provider>
+    );
+    return Wrapper;
+  };
 
-  // Wait for initial render and updates
-  await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, 0));
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (useFeaturesConfig as jest.Mock).mockImplementation(() => true);
+    (useBrowserDetect as jest.Mock).mockImplementation(() => ({ isMobileApp: false }));
+    (getActivePolicyStatus as jest.Mock).mockReturnValue(['ACTIVE']);
+    window.sessionStorage.clear();
   });
 
-  // Assert the tracking event was dispatched
-  await waitFor(
-    () => {
+  // Helper function to wait for GraphQL responses
+  const waitForGraphQL = () => new Promise(resolve => setTimeout(resolve, 50));
+
+  describe('Tracking Events', () => {
+    it('should skip query when using mobile app', async () => {
+      (useBrowserDetect as jest.Mock).mockReturnValue({ isMobileApp: true });
+      
+      const { result } = renderHook(
+        () => useGetOnboardingAndEdocsDetails(mockAppState.setAppState),
+        { wrapper: createWrapper() }
+      );
+
+      await act(async () => {
+        await waitForGraphQL();
+      });
+
+      expect(mockDispatch).not.toHaveBeenCalled();
+    });
+
+    it('should skip query when session storage has onboarding key', async () => {
+      window.sessionStorage.setItem(ONBOARDING_KEY, 'true');
+
+      const { result } = renderHook(
+        () => useGetOnboardingAndEdocsDetails(mockAppState.setAppState),
+        { wrapper: createWrapper() }
+      );
+
+      await act(async () => {
+        await waitForGraphQL();
+      });
+
+      expect(mockDispatch).not.toHaveBeenCalled();
+    });
+
+    it('should dispatch tracking event when eDocsStatus is true', async () => {
+      const mockOnboardingData = {
+        getOnboardingAndEdocsStatus: {
+          showOnboarding: true,
+          showEdocs: true,
+          onboardingType: 'GOB',
+          eDocsStatus: true,
+          policies: ['policy1']
+        },
+      };
+
+      const mocks = [{
+        request: {
+          query: ONBOARDING_QUERY,
+          variables: {
+            policy_statuses: ['ACTIVE'],
+          },
+        },
+        result: {
+          data: mockOnboardingData,
+        },
+      }];
+
+      const { result } = renderHook(
+        () => useGetOnboardingAndEdocsDetails(mockAppState.setAppState),
+        { wrapper: createWrapper(mocks) }
+      );
+
+      await act(async () => {
+        await waitForGraphQL();
+      });
+
       expect(mockDispatch).toHaveBeenCalledWith({
         interaction: Interaction.HIDE,
         element: {
@@ -45,7 +151,81 @@ it('should dispatch tracking event when eDocsStatus is true', async () => {
           type: ElementType.MESSAGE,
         },
       });
-    },
-    { timeout: 2000 }
-  );
+    });
+
+    it('should not dispatch tracking event when eDocsStatus is false', async () => {
+      const mockOnboardingData = {
+        getOnboardingAndEdocsStatus: {
+          showOnboarding: true,
+          showEdocs: false,
+          onboardingType: 'GOB',
+          eDocsStatus: false,
+          policies: ['policy1']
+        },
+      };
+
+      const mocks = [{
+        request: {
+          query: ONBOARDING_QUERY,
+          variables: {
+            policy_statuses: ['ACTIVE'],
+          },
+        },
+        result: {
+          data: mockOnboardingData,
+        },
+      }];
+
+      const { result } = renderHook(
+        () => useGetOnboardingAndEdocsDetails(mockAppState.setAppState),
+        { wrapper: createWrapper(mocks) }
+      );
+
+      await act(async () => {
+        await waitForGraphQL();
+      });
+
+      expect(mockDispatch).not.toHaveBeenCalled();
+    });
+
+    it('should not dispatch tracking event when data is undefined', async () => {
+      const mocks = [{
+        request: {
+          query: ONBOARDING_QUERY,
+          variables: {
+            policy_statuses: ['ACTIVE'],
+          },
+        },
+        result: {
+          data: null,
+        },
+      }];
+
+      const { result } = renderHook(
+        () => useGetOnboardingAndEdocsDetails(mockAppState.setAppState),
+        { wrapper: createWrapper(mocks) }
+      );
+
+      await act(async () => {
+        await waitForGraphQL();
+      });
+
+      expect(mockDispatch).not.toHaveBeenCalled();
+    });
+
+    it('should skip query when both feature flags are disabled', async () => {
+      (useFeaturesConfig as jest.Mock).mockImplementation(() => false);
+
+      const { result } = renderHook(
+        () => useGetOnboardingAndEdocsDetails(mockAppState.setAppState),
+        { wrapper: createWrapper() }
+      );
+
+      await act(async () => {
+        await waitForGraphQL();
+      });
+
+      expect(mockDispatch).not.toHaveBeenCalled();
+    });
+  });
 });
