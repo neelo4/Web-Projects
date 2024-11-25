@@ -1,0 +1,283 @@
+import { gql } from '@apollo/client';
+import { MockedProvider } from '@apollo/client/testing';
+import { renderHook } from '@testing-library/react-hooks';
+import React from 'react';
+import { AppContext } from '../../AppContext';
+import { ONBOARDING_KEY } from '../../components/shared/Constants';
+import { useFeaturesConfig } from '../../features-config';
+import { getActivePolicyStatus } from '../../models/PolicyStatus';
+import useBrowserDetect from '../useBrowserDetect';
+import { useGetOnboardingAndEdocsDetails } from './useGetOnboardingAndEdocsDetails';
+jest.mock('./useApi', () => ({
+  useApiQuery: jest.fn(() => [jest.fn(), {}]),
+}));
+
+jest.mock('../../features-config', () => ({
+  useFeaturesConfig: jest.fn().mockReturnValue(false),
+  FeatureName: {
+    SHOW_DOOTB_ONBOARDING: 'SHOW_DOOTB_ONBOARDING',
+    SHOW_DOOTB_EDOCS_MODAL: 'SHOW_DOOTB_EDOCS_MODAL',
+  },
+}));
+
+const mockAppState = {
+  appState: {
+    externalReturnURL: 'return-url',
+    prefillId: 'prefill-id',
+  },
+  setAppState: jest.fn(),
+};
+
+// Mock dependencies
+jest.mock('../../features-config');
+jest.mock('../useBrowserDetect');
+jest.mock('../../models/PolicyStatus');
+
+const ONBOARDING_QUERY = gql`
+  query getOnboardingAndEdocsStatus($policy_statuses: [String]) {
+    getOnboardingAndEdocsStatus(policyStatuses: $policy_statuses)
+  }
+`;
+
+describe('useGetOnboardingAndEdocsDetails', () => {
+  // Setup common mocks
+  const mockSetAppState = jest.fn();
+
+  const mockAppContextValue = {
+    setAppState: mockSetAppState,
+    appState: {},
+  };
+
+  // Define wrapper type
+  type WrapperProps = {
+    children: React.ReactNode;
+    mocks?: any[];
+  };
+
+  // Create reusable wrapper component
+  const createWrapper = (mocks: any[] = []) => {
+    const Wrapper: React.FC<WrapperProps> = ({ children }) => (
+      <AppContext.Provider value={mockAppContextValue}>
+        <MockedProvider mocks={mocks} addTypename={false}>
+          {children}
+        </MockedProvider>
+      </AppContext.Provider>
+    );
+    return Wrapper;
+  };
+
+  beforeEach(() => {
+    // Reset all mocks before each test
+    jest.clearAllMocks();
+
+    // Default mock implementations
+    (useFeaturesConfig as jest.Mock).mockImplementation(() => true);
+    (useBrowserDetect as jest.Mock).mockImplementation(() => ({ isMobileApp: false }));
+    (getActivePolicyStatus as jest.Mock).mockReturnValue(['ACTIVE']);
+
+    // Clear session storage
+    window.sessionStorage.clear();
+  });
+
+  it('should skip query when using mobile app', () => {
+    // Set up mobile detection
+    (useBrowserDetect as jest.Mock).mockReturnValue({ isMobileApp: true });
+    (useFeaturesConfig as jest.Mock).mockReturnValue(true);
+
+    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(mockAppState.setAppState), {
+      wrapper: createWrapper(),
+    });
+
+    // Check the returned values exactly match what we expect when skipping
+    expect(result.current).toEqual({
+      data: undefined,
+      loading: undefined,
+      error: undefined,
+      hasAuthenticationError: false,
+    });
+  });
+
+  it('should skip query when session storage has onboarding key', () => {
+    // Set up session storage
+    window.sessionStorage.setItem(ONBOARDING_KEY, 'true');
+
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <AppContext.Provider value={{ setAppState: mockSetAppState, appState: {} }}>
+        <MockedProvider mocks={[]}>{children}</MockedProvider>
+      </AppContext.Provider>
+    );
+
+    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(mockAppState.setAppState), { wrapper });
+
+    // Verify the exact shape of the returned object
+    expect(result.current).toEqual({
+      data: undefined,
+      loading: undefined,
+      error: undefined,
+      hasAuthenticationError: false,
+    });
+  });
+
+  it('should skip query when both feature flags are disabled', () => {
+    (useFeaturesConfig as jest.Mock).mockImplementation(() => false);
+
+    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(mockAppState.setAppState), {
+      wrapper: createWrapper(),
+    });
+
+    expect(result.current.loading).toBeUndefined();
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it('should update app state when query completes with data', () => {
+    // Mock the API query to simulate a successful response
+    const mockOnboardingData = {
+      getOnboardingAndEdocsStatus: {
+        showOnboarding: true,
+        showEdocs: false,
+        onboardingType: 'GOB',
+        policies: ['policy1', 'policy2'], // This will be omitted in the state update
+      },
+    };
+
+    const mocks = [
+      {
+        request: {
+          query: ONBOARDING_QUERY,
+          variables: {
+            policy_statuses: ['ACTIVE'],
+          },
+        },
+        result: {
+          data: mockOnboardingData,
+        },
+      },
+    ];
+
+    // Setup feature flags to ensure query runs
+    (useFeaturesConfig as jest.Mock).mockReturnValue(true);
+    (useBrowserDetect as jest.Mock).mockReturnValue({ isMobileApp: false });
+    (getActivePolicyStatus as jest.Mock).mockReturnValue(['ACTIVE']);
+
+    const { result, waitFor } = renderHook(() => useGetOnboardingAndEdocsDetails(mockAppState.setAppState), {
+      wrapper: createWrapper(mocks),
+    });
+
+    // Wait for the query to complete and trigger onCompleted
+    waitFor(() => {
+      // Verify setAppState was called with the correct data
+      expect(mockSetAppState).toHaveBeenCalledWith(expect.any(Function));
+
+      // Get the callback function that was passed to setAppState
+      const setStateCallback = mockSetAppState.mock.calls[0][0];
+      const prevState = {};
+      const newState = setStateCallback(prevState);
+
+      expect(newState).toEqual({
+        ...prevState,
+        onboardingAndEdocsResult: {
+          showOnboarding: true,
+          showEdocs: false,
+          onboardingType: 'GOB',
+        },
+      });
+
+      // Verify 'policies' was omitted
+      expect(newState.onboardingAndEdocsResult).not.toHaveProperty('policies');
+    });
+  });
+
+  it('should not update app state when query completes without data', () => {
+    const mocksWithoutData = [
+      {
+        request: {
+          query: ONBOARDING_QUERY,
+          variables: {
+            policy_statuses: ['ACTIVE'],
+          },
+        },
+        result: {
+          data: {
+            getOnboardingAndEdocsStatus: {},
+          },
+        },
+      },
+    ];
+
+    // Setup feature flags to ensure query runs
+    (useFeaturesConfig as jest.Mock).mockReturnValue(true);
+    (useBrowserDetect as jest.Mock).mockReturnValue({ isMobileApp: false });
+    (getActivePolicyStatus as jest.Mock).mockReturnValue(['ACTIVE']);
+
+    const { result, waitFor } = renderHook(() => useGetOnboardingAndEdocsDetails(mockAppState.setAppState), {
+      wrapper: createWrapper(mocksWithoutData),
+    });
+
+    waitFor(() => {
+      // Verify setAppState was not called for the onboardingAndEdocsResult update
+      const setAppStateForDataCalls = mockSetAppState.mock.calls.filter((call) =>
+        call[0]({}).hasOwnProperty('onboardingAndEdocsResult'),
+      );
+      expect(setAppStateForDataCalls.length).toBe(0);
+    });
+  });
+
+  it('should update app state when query completes with data', () => {
+    // Mock the API query to simulate a successful response
+    const mockOnboardingData = {
+      getOnboardingAndEdocsStatus: {
+        showOnboarding: true,
+        showEdocs: false,
+        onboardingType: 'GOB',
+        policies: ['policy1', 'policy2'], // This will be omitted in the state update
+      },
+    };
+
+    const mocks = [
+      {
+        request: {
+          query: ONBOARDING_QUERY,
+          variables: {
+            policy_statuses: ['ACTIVE'],
+          },
+        },
+        result: {
+          data: mockOnboardingData,
+        },
+      },
+    ];
+
+    // Setup feature flags to ensure query runs
+    (useFeaturesConfig as jest.Mock).mockReturnValue(true);
+    (useBrowserDetect as jest.Mock).mockReturnValue({ isMobileApp: false });
+    (getActivePolicyStatus as jest.Mock).mockReturnValue(['ACTIVE']);
+
+    const { result, waitFor } = renderHook(() => useGetOnboardingAndEdocsDetails(mockAppState.setAppState), {
+      wrapper: createWrapper(mocks),
+    });
+
+    // Wait for the query to complete and trigger onCompleted
+    waitFor(() => {
+      // Verify setAppState was called with the correct data
+      expect(mockSetAppState).toHaveBeenCalledWith(expect.any(Function));
+
+      // Get the callback function that was passed to setAppState
+      const setStateCallback = mockSetAppState.mock.calls[0][0];
+      const prevState = {};
+      const newState = setStateCallback(prevState);
+
+      // Verify the new state has the correct data with 'policies' omitted
+      expect(newState).toEqual({
+        ...prevState,
+        onboardingAndEdocsResult: {
+          showOnboarding: true,
+          showEdocs: false,
+          onboardingType: 'GOB',
+        },
+      });
+
+      // Verify 'policies' was omitted
+      expect(newState.onboardingAndEdocsResult).not.toHaveProperty('policies');
+    });
+  });
+});
