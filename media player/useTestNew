@@ -7,20 +7,26 @@ import { ONBOARDING_KEY } from '../../components/shared/Constants';
 import { useFeaturesConfig } from '../../features-config';
 import { getActivePolicyStatus } from '../../models/PolicyStatus';
 import { ElementType, Interaction } from '../../models/SiteTracking';
-import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
+import { SiteTrackingContext, TrackingEventContextInterface } from '../../sitetracking/SiteTrackingProvider';
 import useBrowserDetect from '../useBrowserDetect';
 import { useGetOnboardingAndEdocsDetails } from './useGetOnboardingAndEdocsDetails';
 
 // ... [keeping existing imports and mock setups]
 
 describe('useGetOnboardingAndEdocsDetails - Tracking Events', () => {
-  const mockDispatch = jest.fn();
+  // Create mock tracking context with full interface implementation
+  const mockTrackingContext: TrackingEventContextInterface = {
+    dispatch: jest.fn(),
+    settlement: null,
+    pageview: null,
+    pageviewImmediately: null
+  };
   
-  // Extended wrapper to include SiteTrackingContext
+  // Extended wrapper to include SiteTrackingContext with proper typing
   const createWrapperWithTracking = (mocks: any[] = []) => {
     const Wrapper: React.FC<WrapperProps> = ({ children }) => (
       <AppContext.Provider value={mockAppContextValue}>
-        <SiteTrackingContext.Provider value={{ dispatch: mockDispatch }}>
+        <SiteTrackingContext.Provider value={mockTrackingContext}>
           <MockedProvider mocks={mocks} addTypename={false}>
             {children}
           </MockedProvider>
@@ -73,7 +79,7 @@ describe('useGetOnboardingAndEdocsDetails - Tracking Events', () => {
 
     await waitFor(() => {
       // Verify tracking event was dispatched with correct parameters
-      expect(mockDispatch).toHaveBeenCalledWith({
+      expect(mockTrackingContext.dispatch).toHaveBeenCalledWith({
         interaction: Interaction.HIDE,
         element: {
           name: 'skip-onboarding',
@@ -85,7 +91,6 @@ describe('useGetOnboardingAndEdocsDetails - Tracking Events', () => {
   });
 
   it('should not dispatch tracking event when eDocsStatus is false', async () => {
-    // Mock data without eDocsStatus
     const mockOnboardingData = {
       getOnboardingAndEdocsStatus: {
         showOnboarding: true,
@@ -118,8 +123,7 @@ describe('useGetOnboardingAndEdocsDetails - Tracking Events', () => {
     );
 
     await waitFor(() => {
-      // Verify tracking event was not dispatched
-      expect(mockDispatch).not.toHaveBeenCalled();
+      expect(mockTrackingContext.dispatch).not.toHaveBeenCalled();
     });
   });
 
@@ -146,8 +150,7 @@ describe('useGetOnboardingAndEdocsDetails - Tracking Events', () => {
     );
 
     await waitFor(() => {
-      // Verify tracking event was not dispatched
-      expect(mockDispatch).not.toHaveBeenCalled();
+      expect(mockTrackingContext.dispatch).not.toHaveBeenCalled();
     });
   });
 });
