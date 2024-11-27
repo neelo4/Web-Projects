@@ -1,8 +1,10 @@
 import { type BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
+import { dispatchTrackingEventToDocument } from '@iag-common/mfe-global-events';
+import { GlobalEventsContext } from '@iag-common/mfe-global-events-context';
 import { addDays } from 'date-fns';
 import { get } from 'lodash';
 import type React from 'react';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { FeatureName, useFeaturesConfig } from '../../../../../features-config';
 import { formatDate, parseZonedDate } from '../../../../../shared/utils/dateUtils';
 import { useBrandUtils } from '../../../../hooks/brand/useBrandUtils';
@@ -40,45 +42,49 @@ export type Props = {
 };
 
 const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tExists, policy }) => {
-  // ... (existing state and constants)
   const [showNumber, setShowNumber] = useState(false);
+  const globalEventsContext = useContext(GlobalEventsContext);
 
-  // ... (existing code remains unchanged)
+  // ... (rest of existing state and constants remain unchanged)
 
-  const onShowNumberClick = () => {
+  const onShowNumberClick = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    event.preventDefault();
     setShowNumber(true);
-  };
+    const number = `${tt('constants.phoneNumbers.generalEnquiries')}`;
 
-  const renderPhoneNumber = () => {
-    if (showNumber) {
-      return (
-        <Link href={`tel:${tt('constants.phoneNumbers.generalEnquiries')}`}>
-          {tt('constants.phoneNumbers.generalEnquiries')}
-        </Link>
-      );
-    }
-    return (
-      <span>
-        {tt('labels.maskedPhoneNumber')} <Link onClick={onShowNumberClick}>{tt('labels.showNumber')}</Link>
-      </span>
-    );
+    dispatchTrackingEventToDocument(globalEventsContext, {
+      pageName: '/contact-us',
+      interaction: 'click',
+      element: {
+        name: 'personal-contact-us',
+        type: 'link',
+        value: number.replaceAll(' ', '-'),
+      },
+    });
   };
 
   if (showMissedInstalment) {
-    const missedInstalmentSubtext = t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'));
+    const element = 'callUs';
     const phoneNumber = showNumber 
-      ? tt('constants.phoneNumbers.generalEnquiries')
-      : <>
-          {tt('labels.maskedPhoneNumber')} <Link onClick={onShowNumberClick}>{tt('labels.showNumber')}</Link>
-        </>;
+      ? <Link href={`tel:${tt('constants.phoneNumbers.generalEnquiriesTelLink')}`}>
+          {tt('constants.phoneNumbers.generalEnquiries')}
+        </Link>
+      : <span>
+          {tt('constants.phoneNumbers.maskGeneralEnquiries')}{' '}
+          <Link onClick={onShowNumberClick}>
+            {tt('pages.contactUs.callUs.showNumberText')}
+          </Link>
+        </span>;
 
     return (
       <PolicyNotification
         type="warning"
         label={tt('labels.missedInstalment')}
-        subtext={`${missedInstalmentSubtext} ${tt('labels.missedInstalmentSubtextTel', { 
-          phoneNumber: showNumber ? tt('constants.phoneNumbers.generalEnquiries') : tt('labels.maskedPhoneNumber')
-        })}`}
+        subtext={
+          <>
+            {t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'))} {phoneNumber}
+          </>
+        }
       />
     );
   }
