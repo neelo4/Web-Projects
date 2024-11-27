@@ -1,0 +1,367 @@
+import { type BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
+import { dispatchTrackingEventToDocument } from '@iag-common/mfe-global-events';
+import { GlobalEventsContext } from '@iag-common/mfe-global-events-context';
+import { Alert, Icon, Link } from '@iag/chroma-react-ui.components';
+import React, { type ChangeEvent, useContext, useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { closeWebchat, openBusinessWebchat, openWebchat } from 'ssc-packages/packages/ui';
+import { BreadcrumbWrapper } from 'ssc-packages/packages/ui/dist/breadcrumbs';
+import type { BreadcrumbItem } from 'ssc-packages/packages/ui/dist/breadcrumbs/Breadcrumbs';
+import { AppContext, type AppState } from '../AppContext';
+import { getBrand } from '../brand';
+import NavigationLink from '../components/shared/NavigationLink';
+import PageBannerWithBreadCrumb from '../components/shared/PageBannerWithBreadCrumb';
+import PageLayout from '../components/shared/layout/PageLayout';
+import { FeatureName, useFeaturesConfig } from '../features-config';
+import { withDataLoad } from '../hoc/withDataLoad';
+import useProfileDetails from '../hooks/api/useProfileDetails';
+import usePageViewEvent from '../hooks/sitetracking/usePageViewEvent';
+import useBrowserDetect from '../hooks/useBrowserDetect';
+import { PageId } from '../models/PageId';
+import type { ProfileDetails } from '../models/ProfileDetails';
+import { getBrandTitle } from '../utils/brandUtils';
+import { hasBusinessPolicies, hasPersonalPolicies } from '../utils/partyUtils';
+
+export const profileDetailsContext = React.createContext<ProfileDetails>(undefined);
+export const contactBreadcrumb: BreadcrumbItem = {
+  to: '/contactus',
+  label: 'Contact us',
+};
+export type ContactUsSection =
+  | 'breakdownService'
+  | 'callUs'
+  | 'emailUs'
+  | 'existingClaim'
+  | 'financialSupport'
+  | 'messageUsOnFacebook'
+  | 'onlineChat'
+  | 'roadsideRescue'
+  | 'urgentClaim';
+
+export type BusinessPoliciesContactUsSection = 'businessPoliciesCallUs' | 'businessPoliciesOnlineChat';
+
+interface ContactUsProps {
+  businessElementsToBeShow?: BusinessPoliciesContactUsSection[];
+  businessElementsInSameTab?: BusinessPoliciesContactUsSection[];
+  elementsToBeShow: ContactUsSection[];
+  elementsInSameTab?: ContactUsSection[];
+}
+
+const openWebChatClick = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  event.preventDefault();
+  openWebchat();
+};
+
+const openPersonalWebChatClick = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  event.preventDefault();
+  closeWebchat();
+  const timer = setTimeout(() => {
+    openWebchat();
+    clearTimeout(timer);
+  }, 1);
+};
+
+const openBusinessWebchatClick = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  event.preventDefault();
+  closeWebchat();
+  const timer = setTimeout(() => {
+    openBusinessWebchat();
+    clearTimeout(timer);
+  }, 1);
+};
+
+const getLinkLabel = (label: string) => {
+  if (label.includes('(')) {
+    return label.substring(0, label.indexOf('('));
+  }
+  return label;
+};
+
+const ContactUs: React.FC<BrandDataProps & ContactUsProps> = ({
+  t,
+  tt,
+  tExists,
+  businessElementsToBeShow,
+  businessElementsInSameTab,
+  elementsToBeShow,
+  elementsInSameTab,
+}) => {
+  const breadcrumbTextColourInverted: boolean = useFeaturesConfig(FeatureName.BREADCRUMB_TEXT_COLOUR_INVERTED);
+  const { appState, setAppState } = useContext(AppContext);
+  const { showEmailSentSuccess, dashboardSuccessAlert, customerType } = appState;
+  const useBusinessPolicyMfe = useFeaturesConfig(FeatureName.USE_BUSINESS_POLICY_MFE);
+  const brand = appState.brand?.toUpperCase();
+  const hasPersonalAndBusinessPolicies =
+    useBusinessPolicyMfe && customerType === 'BUSINESS_AND_PERSONAL' ? true : false;
+  const isBusinessPolicyCustomer = hasBusinessPolicies(appState.customerType);
+  const isPersonalPoliciesCustomer = hasPersonalPolicies(appState.customerType);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isMobileApp } = useBrowserDetect();
+
+  const [showNumber, setShowNumber] = useState(false);
+  const globalEventsContext = useContext(GlobalEventsContext);
+
+  useEffect(
+    function openWebChatOnUrlHash() {
+      if (location.hash === '#webchat' && typeof openWebchat === 'function' && isPersonalPoliciesCustomer) {
+        // wait for state hooks internal to openWebchat to resolve before calling
+        setTimeout(openWebchat, 1);
+      }
+      if (location.hash === '#webchat' && typeof openBusinessWebchat === 'function' && isBusinessPolicyCustomer) {
+        // wait for state hooks internal to openWebchat to resolve before calling
+        setTimeout(openBusinessWebchat, 2000);
+      }
+    },
+    [location.hash, openWebchat],
+  );
+
+  React.useEffect(() => {
+    return () => {
+      if (showEmailSentSuccess) {
+        setAppState(
+          (prevState: AppState): AppState => ({
+            ...prevState,
+            showEmailSentSuccess: false,
+          }),
+        );
+      }
+    };
+  }, []);
+
+  const renderPageBanner = (): React.ReactNode => {
+    return (
+      <>
+        <PageBannerWithBreadCrumb
+          breadcrumbSection={
+            isMobileApp ? (
+              <></>
+            ) : (
+              <BreadcrumbWrapper
+                brand={getBrand()}
+                brandTitle={getBrandTitle(tt('labels.brandTitle'))}
+                breadcrumbsEnabled={true}
+                last={tt('pages.contactUs.title')}
+                linkTextColor={breadcrumbTextColourInverted ? `text-${tt('constants.colors.bannerTextColor')}` : ''}
+                onLinkClick={(e: unknown, data: BreadcrumbItem) => {
+                  navigate(data.to ?? '/');
+                }}
+                redirectionFromHost={true}
+                showExitModal={false}
+              />
+            )
+          }
+          pageHeaderText={tt('pages.contactUs.title')}
+        />
+      </>
+    );
+  };
+
+  const onPersonalContactUsNavigationClick = (element: string, e: ChangeEvent<HTMLSelectElement>) => {
+    if (element === 'onlineChat') {
+      hasPersonalAndBusinessPolicies ? openPersonalWebChatClick(e) : openWebChatClick(e);
+    }
+    if (element === 'callUs') {
+      const number = `${tt('constants.phoneNumbers.generalEnquiries')}`;
+
+      dispatchTrackingEventToDocument(globalEventsContext, {
+        pageName: '/contact-us',
+        interaction: 'click',
+        element: {
+          name: 'personal-contact-us',
+          type: 'link',
+          value: number.replaceAll(' ', '-'),
+        },
+      });
+    }
+  };
+
+  const renderPersonalContactUsNavigationLink = (element: ContactUsSection) => {
+    return (
+      <NavigationLink
+        to={tt(`pages.contactUs.${element}.link`)}
+        dataTestid={element + '.linkToAction1'}
+        trackingName="personal-contact-us"
+        newWindow={!(elementsInSameTab && elementsInSameTab.includes(element))}
+        onClick={(e: ChangeEvent<HTMLSelectElement>) => onPersonalContactUsNavigationClick(element, e)}
+        isInternalLink={true}
+      >
+        {getLinkLabel(`${tt(`pages.contactUs.${element}.linkLabel`)}`)}
+      </NavigationLink>
+    );
+  };
+
+  const renderPersonalContactUsContent = (element: ContactUsSection) => {
+    return (
+      <div
+        key={element}
+        className={`flex border border-${tt('constants.colors.borderColor')} p-6 max-w-3xl flex gap-3`}
+        data-testid={element}
+      >
+        <Icon
+          data-testid={element + '.icon'}
+          className={`${tt(`pages.contactUs.${element}.icon`)} text-base mr-3`}
+          aria-label={tt(`pages.contactUs.${element}.icon`)}
+        />
+        <div className="flex flex-col gap-2">
+          <h4 className="h4" data-testid={element + '.heading'}>
+            {tt(`pages.contactUs.${element}.title`)}
+          </h4>
+          {tExists(`pages.contactUs.${element}.message`) && (
+            <div data-testid={element + '.subtitle1'} className="flex flex-col gap-2">
+              {t(`pages.contactUs.${element}.message`)}
+            </div>
+          )}
+          {tExists(`pages.contactUs.${element}.link`) && (
+            <div>
+              {tExists(`pages.contactUs.${element}.showNumberText`)
+                ? showNumber
+                  ? renderPersonalContactUsNavigationLink(element)
+                  : renderShowNumberLinkLabel(element)
+                : renderPersonalContactUsNavigationLink(element)}
+
+              {tExists(`pages.contactUs.${element}.link2`) && (
+                <div data-testid={element + '.link2'}>{t(`pages.contactUs.${element}.link2`)}</div>
+              )}
+            </div>
+          )}
+          {tExists(`pages.contactUs.${element}.timeRange`) && (
+            <div>
+              <div data-testid={element + '.timeRange'}>{t(`pages.contactUs.${element}.timeRange`)}</div>
+              {tExists(`pages.contactUs.${element}.timeRange2`) && (
+                <div data-testid={element + '.timeRange2'}>{t(`pages.contactUs.${element}.timeRange2`)}</div>
+              )}
+            </div>
+          )}
+          {tExists(`pages.contactUs.${element}.message2`) && (
+            <div data-testid={element + '.subtitle2'}>{t(`pages.contactUs.${element}.message2`)}</div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const onShowNumberClick = () => {
+    setShowNumber(true);
+    dispatchTrackingEventToDocument(globalEventsContext, {
+      pageName: '/contact-us',
+      interaction: 'click',
+      element: {
+        name: 'personal-contact-us',
+        type: 'link',
+        value: 'show-number',
+      },
+    });
+  };
+
+  const renderShowNumberLinkLabel = (element: string) => {
+    return (
+      <div data-testid={element + '.linkToAction1'}>
+        {`${tt(`pages.contactUs.${element}.maskLinkLabel`)} `}
+        <Link onClick={onShowNumberClick}>{`${tt(`pages.contactUs.callUs.showNumberText`)}`}</Link>
+      </div>
+    );
+  };
+
+  const renderBusinessContactUsContent = (element: BusinessPoliciesContactUsSection) => {
+    return (
+      <div
+        key={element}
+        className={`flex border border-${tt('constants.colors.borderColor')} p-6 max-w-3xl flex gap-3`}
+        data-testid={element}
+      >
+        <Icon
+          data-testid={element + '.icon'}
+          className={`${tt(`pages.contactUs.${element}.icon`)} text-base mr-3`}
+          aria-label={tt(`pages.contactUs.${element}.icon`)}
+        />
+        <div className="flex flex-col gap-2">
+          <h4 className="h4" data-testid={element + '.heading'}>
+            {tt(`pages.contactUs.${element}.title`)}
+          </h4>
+          {tExists(`pages.contactUs.${element}.message`) && (
+            <div data-testid={element + '.subtitle1'}>{t(`pages.contactUs.${element}.message`)}</div>
+          )}
+          <NavigationLink
+            to={tt(`pages.contactUs.${element}.link`)}
+            dataTestid={element + '.linkToAction1'}
+            trackingName="business-contact-us"
+            newWindow={
+              !(
+                businessElementsInSameTab &&
+                businessElementsInSameTab.includes(element as BusinessPoliciesContactUsSection)
+              )
+            }
+            onClick={element === 'businessPoliciesOnlineChat' ? openBusinessWebchatClick : undefined}
+            isInternalLink={true}
+          >
+            {getLinkLabel(`${tt(`pages.contactUs.${element}.linkLabel`)}`)}
+          </NavigationLink>
+          {tExists(`pages.contactUs.${element}.link2`) && (
+            <div data-testid={element + '.link2'}>{t(`pages.contactUs.${element}.link2`)}</div>
+          )}
+          {tExists(`pages.contactUs.${element}.timeRange`) && (
+            <>
+              <div data-testid={element + '.timeRange'}>{t(`pages.contactUs.${element}.timeRange`)}</div>
+              {tExists(`pages.contactUs.${element}.timeRange2`) && (
+                <div data-testid={element + '.timeRange2'}>{t(`pages.contactUs.${element}.timeRange2`)}</div>
+              )}
+            </>
+          )}
+          {tExists(`pages.contactUs.${element}.message2`) && (
+            <div data-testid={element + '.subtitle2'}>{t(`pages.contactUs.${element}.message2`)}</div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderContactUsPageContent = () => {
+    return (
+      <div className="flex flex-col gap-4">
+        {showEmailSentSuccess && (
+          <Alert variant="success" dismissible>
+            <p>
+              <strong>{dashboardSuccessAlert?.heading}</strong>
+            </p>
+            <p>
+              {dashboardSuccessAlert?.appendEmail
+                ? `${dashboardSuccessAlert.subText}${appState.email?.toLocaleLowerCase()}`
+                : dashboardSuccessAlert.subText}
+            </p>
+          </Alert>
+        )}
+        {hasPersonalAndBusinessPolicies && (
+          <h3 className="h3 pt-3" data-testid={'personalContactUsTitle'}>{`${tt(
+            `pages.contactUs.headings.${brand}`,
+          )}`}</h3>
+        )}
+        {isPersonalPoliciesCustomer &&
+          elementsToBeShow &&
+          elementsToBeShow?.map((element: ContactUsSection) => {
+            return renderPersonalContactUsContent(element);
+          })}
+        {isBusinessPolicyCustomer && (
+          <h3
+            className={hasPersonalAndBusinessPolicies ? 'h3 pt-6' : 'h3'}
+            data-testid={'businessContactUsTitle'}
+          >{`${tt(`pages.contactUs.headings.${brand}Business`)}`}</h3>
+        )}
+        {isBusinessPolicyCustomer &&
+          businessElementsToBeShow &&
+          businessElementsToBeShow?.map((element: BusinessPoliciesContactUsSection) => {
+            return renderBusinessContactUsContent(element);
+          })}
+      </div>
+    );
+  };
+
+  return <PageLayout pageBannerSection={renderPageBanner()} leftSection={renderContactUsPageContent()} />;
+};
+
+export default withDataLoad(
+  useProfileDetails,
+  profileDetailsContext,
+  usePageViewEvent(PageId.ContactUs),
+  () => null,
+)(connectIagBrand()(ContactUs));
