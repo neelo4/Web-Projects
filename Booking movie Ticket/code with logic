@@ -51,11 +51,20 @@ const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tEx
       <PolicyNotification
         type="warning"
         label={tt('labels.missedInstalment')}
-        subtext={t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext', {
-          phoneNumber: showNumber 
-            ? tt('constants.phoneNumbers.generalEnquiries')
-            : `${tt('constants.phoneNumbers.maskGeneralEnquiries')} <click>Show number</click>`
-        }))}
+        subtext={
+          <div>
+            {t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'))}
+            {' '}
+            {showNumber ? (
+              tt('constants.phoneNumbers.generalEnquiries')
+            ) : (
+              <>
+                {tt('constants.phoneNumbers.maskGeneralEnquiries')}{' '}
+                <Link onClick={onShowNumberClick}>Show number</Link>
+              </>
+            )}
+          </div>
+        }
       />
     );
   }
