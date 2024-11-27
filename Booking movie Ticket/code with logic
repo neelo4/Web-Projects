@@ -40,28 +40,10 @@ export type Props = {
 };
 
 const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tExists, policy }) => {
-  // ... (existing state and constants)
   const [showNumber, setShowNumber] = useState(false);
-
-  // ... (existing code remains unchanged)
 
   const onShowNumberClick = () => {
     setShowNumber(true);
-  };
-
-  const renderPhoneNumber = () => {
-    if (showNumber) {
-      return (
-        <Link href={`tel:${tt('constants.phoneNumbers.generalEnquiries')}`}>
-          {tt('constants.phoneNumbers.generalEnquiries')}
-        </Link>
-      );
-    }
-    return (
-      <>
-        1300... <Link onClick={onShowNumberClick}>Show number</Link>
-      </>
-    );
   };
 
   if (showMissedInstalment) {
@@ -69,16 +51,14 @@ const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tEx
       <PolicyNotification
         type="warning"
         label={tt('labels.missedInstalment')}
-        subtext={
-          <>
-            {t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'))} {renderPhoneNumber()}
-          </>
-        }
+        subtext={t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext', {
+          phoneNumber: showNumber 
+            ? tt('constants.phoneNumbers.generalEnquiries')
+            : `${tt('constants.phoneNumbers.maskGeneralEnquiries')} <click>Show number</click>`
+        }))}
       />
     );
   }
-
-  // ... (rest of the existing code remains unchanged)
 
   return <></>;
 };
