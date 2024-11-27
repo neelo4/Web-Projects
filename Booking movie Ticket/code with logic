@@ -47,25 +47,18 @@ const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tEx
   };
 
   if (showMissedInstalment) {
+    const subtext = t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'), {
+      phoneNumber: showNumber 
+        ? tt('constants.phoneNumbers.generalEnquiries')
+        : '1300... <Link onClick={onShowNumberClick}>Show number</Link>',
+      telLink: tt('constants.phoneNumbers.generalEnquiriesTelLink')
+    });
+
     return (
       <PolicyNotification
         type="warning"
         label={tt('labels.missedInstalment')}
-        subtext={
-          <>
-            {t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'))}
-            {' '}
-            {showNumber ? 
-              tt('constants.phoneNumbers.generalEnquiries')
-              : 
-              <>
-                {tt('constants.phoneNumbers.maskGeneralEnquiries')}
-                {' '}
-                <Link onClick={onShowNumberClick}>Show number</Link>
-              </>
-            }
-          </>
-        }
+        subtext={subtext}
       />
     );
   }
