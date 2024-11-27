@@ -1,0 +1,40 @@
+import React, { useState, type ReactNode } from 'react';
+
+type ShowPhoneNumberProps = {
+  maskedNumber: string;
+  unmaskedNumber: string;
+};
+
+const ShowPhoneNumber: React.FC<ShowPhoneNumberProps> = ({ maskedNumber, unmaskedNumber }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [showLink, setShowLink] = useState(true);
+
+  const handleShowNumber = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsVisible(true);
+    setShowLink(false);
+  };
+
+  return (
+    <span className="inline-flex items-center">
+      {isVisible ? (
+        <a 
+          href={`tel:${unmaskedNumber.replace(/\s/g, '')}`} 
+          className="text-blue-600 underline"
+        >
+          {unmaskedNumber}
+        </a>
+      ) : (
+        <span className="text-blue-600">{maskedNumber}</span>
+      )}
+      {showLink && (
+        <button
+          onClick={handleShowNumber}
+          className="ml-1 text-blue-600 hover:text-blue-800 text-sm underline focus:outline-none"
+        >
+          Show number
+        </button>
+      )}
+    </span>
+  );
+};
