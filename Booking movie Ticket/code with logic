@@ -1,11 +1,8 @@
 import { type BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
-import { dispatchTrackingEventToDocument } from '@iag-common/mfe-global-events';
-import { GlobalEventsContext } from '@iag-common/mfe-global-events-context';
 import { addDays } from 'date-fns';
 import { get } from 'lodash';
 import type React from 'react';
-import { useContext, useState } from 'react';
-import NavigationLink from '../../../components/shared/NavigationLink';
+import { useState } from 'react';
 import { FeatureName, useFeaturesConfig } from '../../../../../features-config';
 import { formatDate, parseZonedDate } from '../../../../../shared/utils/dateUtils';
 import { useBrandUtils } from '../../../../hooks/brand/useBrandUtils';
@@ -43,47 +40,27 @@ export type Props = {
 };
 
 const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tExists, policy }) => {
+  // ... (existing state and constants)
   const [showNumber, setShowNumber] = useState(false);
-  const globalEventsContext = useContext(GlobalEventsContext);
-  const element = 'callUs';
 
-  const onShowNumberClick = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    e.preventDefault();
+  // ... (existing code remains unchanged)
+
+  const onShowNumberClick = () => {
     setShowNumber(true);
-    const number = `${tt('constants.phoneNumbers.generalEnquiries')}`;
-
-    dispatchTrackingEventToDocument(globalEventsContext, {
-      pageName: '/contact-us',
-      interaction: 'click',
-      element: {
-        name: 'personal-contact-us',
-        type: 'link',
-        value: number.replaceAll(' ', '-'),
-      },
-    });
   };
 
-  const renderPhoneNavigationLink = () => {
+  const renderPhoneNumber = () => {
+    if (showNumber) {
+      return (
+        <Link href={`tel:${tt('constants.phoneNumbers.generalEnquiries')}`}>
+          {tt('constants.phoneNumbers.generalEnquiries')}
+        </Link>
+      );
+    }
     return (
-      <NavigationLink
-        to={tt(`pages.contactUs.${element}.link`)}
-        dataTestid={element + '.linkToAction1'}
-        trackingName="personal-contact-us"
-        newWindow={false}
-        onClick={(e: React.ChangeEvent<HTMLSelectElement>) => onShowNumberClick(e)}
-        isInternalLink={true}
-      >
-        {tt('constants.phoneNumbers.generalEnquiries')}
-      </NavigationLink>
-    );
-  };
-
-  const renderShowNumberLinkLabel = () => {
-    return (
-      <div data-testid={element + '.linkToAction1'}>
-        {`${tt('constants.phoneNumbers.maskGeneralEnquiries')} `}
-        <Link onClick={onShowNumberClick}>{tt('pages.contactUs.callUs.showNumberText')}</Link>
-      </div>
+      <>
+        1300... <Link onClick={onShowNumberClick}>Show number</Link>
+      </>
     );
   };
 
@@ -94,8 +71,7 @@ const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tEx
         label={tt('labels.missedInstalment')}
         subtext={
           <>
-            {t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'))}{' '}
-            {showNumber ? renderPhoneNavigationLink() : renderShowNumberLinkLabel()}
+            {t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'))} {renderPhoneNumber()}
           </>
         }
       />
