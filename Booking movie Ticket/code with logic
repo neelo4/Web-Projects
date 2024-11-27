@@ -5,6 +5,7 @@ import { addDays } from 'date-fns';
 import { get } from 'lodash';
 import type React from 'react';
 import { useContext, useState } from 'react';
+import NavigationLink from '../../../components/shared/NavigationLink';
 import { FeatureName, useFeaturesConfig } from '../../../../../features-config';
 import { formatDate, parseZonedDate } from '../../../../../shared/utils/dateUtils';
 import { useBrandUtils } from '../../../../hooks/brand/useBrandUtils';
@@ -44,11 +45,10 @@ export type Props = {
 const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tExists, policy }) => {
   const [showNumber, setShowNumber] = useState(false);
   const globalEventsContext = useContext(GlobalEventsContext);
+  const element = 'callUs';
 
-  // ... (rest of existing state and constants remain unchanged)
-
-  const onShowNumberClick = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    event.preventDefault();
+  const onShowNumberClick = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.preventDefault();
     setShowNumber(true);
     const number = `${tt('constants.phoneNumbers.generalEnquiries')}`;
 
@@ -63,26 +63,39 @@ const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tEx
     });
   };
 
-  if (showMissedInstalment) {
-    const element = 'callUs';
-    const phoneNumber = showNumber 
-      ? <Link href={`tel:${tt('constants.phoneNumbers.generalEnquiriesTelLink')}`}>
-          {tt('constants.phoneNumbers.generalEnquiries')}
-        </Link>
-      : <span>
-          {tt('constants.phoneNumbers.maskGeneralEnquiries')}{' '}
-          <Link onClick={onShowNumberClick}>
-            {tt('pages.contactUs.callUs.showNumberText')}
-          </Link>
-        </span>;
+  const renderPhoneNavigationLink = () => {
+    return (
+      <NavigationLink
+        to={tt(`pages.contactUs.${element}.link`)}
+        dataTestid={element + '.linkToAction1'}
+        trackingName="personal-contact-us"
+        newWindow={false}
+        onClick={(e: React.ChangeEvent<HTMLSelectElement>) => onShowNumberClick(e)}
+        isInternalLink={true}
+      >
+        {tt('constants.phoneNumbers.generalEnquiries')}
+      </NavigationLink>
+    );
+  };
 
+  const renderShowNumberLinkLabel = () => {
+    return (
+      <div data-testid={element + '.linkToAction1'}>
+        {`${tt('constants.phoneNumbers.maskGeneralEnquiries')} `}
+        <Link onClick={onShowNumberClick}>{tt('pages.contactUs.callUs.showNumberText')}</Link>
+      </div>
+    );
+  };
+
+  if (showMissedInstalment) {
     return (
       <PolicyNotification
         type="warning"
         label={tt('labels.missedInstalment')}
         subtext={
           <>
-            {t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'))} {phoneNumber}
+            {t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'))}{' '}
+            {showNumber ? renderPhoneNavigationLink() : renderShowNumberLinkLabel()}
           </>
         }
       />
