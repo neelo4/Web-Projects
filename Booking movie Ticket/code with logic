@@ -40,6 +40,10 @@ export type Props = {
 
 const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tExists, policy }) => {
   const [showNumber, setShowNumber] = useState(false);
+  
+  const { policyStatus, paymentType } = policy;
+  
+  const showMissedInstalment = policyStatus === PolicyStatus.PaymentOverdue && paymentType === PaymentType.DirectDebit;
 
   if (showMissedInstalment) {
     const missedInstalmentText = t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'), {
