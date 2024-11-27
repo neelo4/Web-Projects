@@ -41,24 +41,30 @@ export type Props = {
 
 const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tExists, policy }) => {
   const [showNumber, setShowNumber] = useState(false);
-
-  const onShowNumberClick = () => {
-    setShowNumber(true);
+  
+  const renderPhoneNumber = () => {
+    if (showNumber) {
+      return tt('constants.phoneNumbers.generalEnquiries');
+    }
+    return (
+      <>
+        {tt('constants.phoneNumbers.maskGeneralEnquiries')} 
+        <Link onClick={() => setShowNumber(true)}>
+          {tt('pages.contactUs.callUs.showNumberText')}
+        </Link>
+      </>
+    );
   };
 
   if (showMissedInstalment) {
-    const subtext = t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'), {
-      phoneNumber: showNumber 
-        ? tt('constants.phoneNumbers.generalEnquiries')
-        : '1300... <Link onClick={onShowNumberClick}>Show number</Link>',
-      telLink: tt('constants.phoneNumbers.generalEnquiriesTelLink')
-    });
-
     return (
       <PolicyNotification
         type="warning"
         label={tt('labels.missedInstalment')}
-        subtext={subtext}
+        subtext={t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'), {
+          phoneNumber: renderPhoneNumber(),
+          telLink: tt('constants.phoneNumbers.generalEnquiriesTelLink')
+        })}
       />
     );
   }
