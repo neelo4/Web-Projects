@@ -33,7 +33,6 @@ import {
 } from '../../../../models/PolicyStatus';
 import PayLaterModal from '../../PayLaterModal';
 import PolicyNotification from './PolicyNotification';
-import { Link } from '@iag/chroma-react-ui.components';
 
 export type Props = {
   policy: PolicySummary;
@@ -41,32 +40,22 @@ export type Props = {
 
 const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tExists, policy }) => {
   const [showNumber, setShowNumber] = useState(false);
-  
-  const renderSubtext = () => {
-    return (
-      <>
-        {t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'))}
-        {' '}
-        {showNumber ? (
-          tt('constants.phoneNumbers.generalEnquiries')
-        ) : (
-          <>
-            {tt('constants.phoneNumbers.maskGeneralEnquiries')}{' '}
-            <Link onClick={() => setShowNumber(true)}>
-              {tt('pages.contactUs.callUs.showNumberText')}
-            </Link>
-          </>
-        )}
-      </>
-    );
-  };
 
   if (showMissedInstalment) {
+    const missedInstalmentText = t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'), {
+      phoneNumber: showNumber 
+        ? tt('constants.phoneNumbers.generalEnquiries')
+        : tt('constants.phoneNumbers.maskGeneralEnquiries'),
+      telLink: tt('constants.phoneNumbers.generalEnquiriesTelLink')
+    });
+
     return (
       <PolicyNotification
         type="warning"
         label={tt('labels.missedInstalment')}
-        subtext={renderSubtext()}
+        subtext={missedInstalmentText}
+        linkLabel={!showNumber ? tt('pages.contactUs.callUs.showNumberText') : undefined}
+        onLinkClick={!showNumber ? () => setShowNumber(true) : undefined}
       />
     );
   }
