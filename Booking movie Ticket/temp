@@ -1,4 +1,6 @@
-import React, { useState, type ReactNode } from 'react';
+import React, { useState, type ReactNode, useContext } from 'react';
+import { GlobalEventsContext } from '@iag-common/mfe-global-events-context';
+import { dispatchTrackingEventToDocument } from '@iag-common/mfe-global-events';
 
 type ShowPhoneNumberProps = {
   maskedNumber: string;
@@ -8,33 +10,89 @@ type ShowPhoneNumberProps = {
 const ShowPhoneNumber: React.FC<ShowPhoneNumberProps> = ({ maskedNumber, unmaskedNumber }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [showLink, setShowLink] = useState(true);
+  const globalEventsContext = useContext(GlobalEventsContext);
 
   const handleShowNumber = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsVisible(true);
     setShowLink(false);
+
+    // Analytics for Show number click
+    dispatchTrackingEventToDocument(globalEventsContext, {
+      pageName: '/dashboard',
+      interaction: 'click',
+      element: {
+        name: 'call-us',
+        type: 'link',
+        value: 'show-number'
+      }
+    });
+  };
+
+  const handleNumberClick = (e: React.MouseEvent) => {
+    // Analytics for number click
+    dispatchTrackingEventToDocument(globalEventsContext, {
+      pageName: '/dashboard',
+      interaction: 'click',
+      element: {
+        name: 'call-us',
+        type: 'link',
+        value: unmaskedNumber.replace(/\s/g, '-')
+      }
+    });
   };
 
   return (
-    <span className="inline-flex items-center">
+    <span style={{ display: 'inline' }}>
       {isVisible ? (
         <a 
           href={`tel:${unmaskedNumber.replace(/\s/g, '')}`} 
           className="text-blue-600 underline"
+          onClick={handleNumberClick}
         >
           {unmaskedNumber}
         </a>
       ) : (
-        <span className="text-blue-600">{maskedNumber}</span>
-      )}
-      {showLink && (
-        <button
-          onClick={handleShowNumber}
-          className="ml-1 text-blue-600 hover:text-blue-800 text-sm underline focus:outline-none"
-        >
-          Show number
-        </button>
+        <>
+          <span className="text-blue-600">{maskedNumber}</span>
+          {showLink && (
+            <button
+              onClick={handleShowNumber}
+              className="ml-1 text-blue-600 hover:text-blue-800 text-sm underline focus:outline-none"
+              style={{ verticalAlign: 'baseline' }}
+            >
+              Show number
+            </button>
+          )}
+        </>
       )}
     </span>
   );
 };
+
+const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tExists, policy }) => {
+  if (showMissedInstalment) {
+    return (
+      <PolicyNotification
+        type="warning"
+        label={tt('labels.missedInstalment')}
+        subtext={
+          <span style={{ display: 'inline' }}>
+            {tt(getFullBrandStringNameByUserType('labels.paymentOverduePrefix'))}
+            {' '}
+            <ShowPhoneNumber
+              maskedNumber={tt('pages.callUs.maskLinkLabel')}
+              unmaskedNumber="1300 332 048"
+            />
+            {' '}
+            {tt(getFullBrandStringNameByUserType('labels.paymentOverdueSuffix'))}
+          </span>
+        }
+      />
+    );
+  }
+  
+  // ... rest of existing code
+};
+
+export default connectIagBrand()(PolicyStatusNotification);
