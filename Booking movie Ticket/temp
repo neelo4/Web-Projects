@@ -1,26 +1,30 @@
 import React, { useState } from 'react';
 import { trackingEventWrapper } from '../../../utils/trackingEventWrapper';
-import { useContext } from '../../../utils/SiteTrackingContext';
+import { SiteTrackingContext } from '../../../utils/SiteTrackingContext';
 import { ActionName, ElementType, Interaction } from '../../../models/tracking';
+import { type BrandDataProps } from '@iag-common/iag-brand-context';
+import NavigationLink from '../../../components/shared/NavigationLink';
 
 type ShowPhoneNumberProps = {
   maskedNumber: string;
   unmaskedNumber: string;
-};
+} & BrandDataProps;
 
-const ShowPhoneNumber: React.FC<ShowPhoneNumberProps> = ({ maskedNumber, unmaskedNumber }) => {
+const ShowPhoneNumber: React.FC<ShowPhoneNumberProps> = ({ maskedNumber, unmaskedNumber, tt }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [showLink, setShowLink] = useState(true);
-  const trackingEventContext = useContext(SiteTrackingContext);
 
-  const handleShowNumber = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const trackingEventContext = React.useContext(SiteTrackingContext);
+  const pageName = '/dashboard';
+
+  const handleShowNumber = () => {
+    console.log('ShowNumber button clicked');
     setIsVisible(true);
     setShowLink(false);
 
-    // Track show number click
     trackingEventWrapper({
-      ...trackingEventContext,
+      trackingEventContext,
+      pageName,
       details: {
         interaction: Interaction.CLICK,
         element: {
@@ -33,9 +37,12 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps> = ({ maskedNumber, unmaske
   };
 
   const handleNumberClick = (e: React.MouseEvent) => {
-    // Track number click
+    e.preventDefault();
+    console.log('Number clicked');
+    
     trackingEventWrapper({
-      ...trackingEventContext,
+      trackingEventContext,
+      pageName,
       details: {
         interaction: Interaction.CLICK,
         element: {
@@ -48,15 +55,17 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps> = ({ maskedNumber, unmaske
   };
 
   return (
-    <span style={{ display: 'inline' }}>
+    <span className="inline-flex items-center">
       {isVisible ? (
-        <a 
-          href={`tel:${unmaskedNumber.replace(/\s/g, '')}`} 
-          className="text-blue-600 underline"
+        <NavigationLink
+          to={tt('constants.phoneNumbers.generalEnquiriesTellink')}
           onClick={handleNumberClick}
+          newWindow={true}
+          isInternalLink={true}
+          className="text-blue-600 underline"
         >
           {unmaskedNumber}
-        </a>
+        </NavigationLink>
       ) : (
         <>
           <span className="text-blue-600">{maskedNumber}</span>
@@ -66,7 +75,7 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps> = ({ maskedNumber, unmaske
               className="ml-1 text-blue-600 hover:text-blue-800 text-sm underline focus:outline-none"
               style={{ verticalAlign: 'baseline' }}
             >
-              Show number
+              {tt('pages.callUs.showNumberText')}
             </button>
           )}
         </>
