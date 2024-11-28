@@ -1,6 +1,7 @@
-import React, { useState, type ReactNode, useContext } from 'react';
-import { GlobalEventsContext } from '@iag-common/mfe-global-events-context';
-import { dispatchTrackingEventToDocument } from '@iag-common/mfe-global-events';
+import React, { useState } from 'react';
+import { trackingEventWrapper } from '../../../utils/trackingEventWrapper';
+import { useContext } from '../../../utils/SiteTrackingContext';
+import { ActionName, ElementType, Interaction } from '../../../models/tracking';
 
 type ShowPhoneNumberProps = {
   maskedNumber: string;
@@ -10,36 +11,40 @@ type ShowPhoneNumberProps = {
 const ShowPhoneNumber: React.FC<ShowPhoneNumberProps> = ({ maskedNumber, unmaskedNumber }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [showLink, setShowLink] = useState(true);
-  const globalEventsContext = useContext(GlobalEventsContext);
+  const trackingEventContext = useContext(SiteTrackingContext);
 
   const handleShowNumber = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsVisible(true);
     setShowLink(false);
 
-    // Analytics for Show number click
-    dispatchTrackingEventToDocument(globalEventsContext, {
-      pageName: '/dashboard',
-      interaction: 'click',
-      element: {
-        name: 'call-us',
-        type: 'link',
-        value: 'show-number'
+    // Track show number click
+    trackingEventWrapper({
+      ...trackingEventContext,
+      details: {
+        interaction: Interaction.CLICK,
+        element: {
+          name: ActionName.SHOW_NUMBER,
+          type: ElementType.LINK,
+          value: 'show-number'
+        }
       }
-    });
+    })();
   };
 
   const handleNumberClick = (e: React.MouseEvent) => {
-    // Analytics for number click
-    dispatchTrackingEventToDocument(globalEventsContext, {
-      pageName: '/dashboard',
-      interaction: 'click',
-      element: {
-        name: 'call-us',
-        type: 'link',
-        value: unmaskedNumber.replace(/\s/g, '-')
+    // Track number click
+    trackingEventWrapper({
+      ...trackingEventContext,
+      details: {
+        interaction: Interaction.CLICK,
+        element: {
+          name: ActionName.CALL_US,
+          type: ElementType.LINK,
+          value: unmaskedNumber.replace(/\s/g, '-')
+        }
       }
-    });
+    })();
   };
 
   return (
@@ -70,29 +75,4 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps> = ({ maskedNumber, unmaske
   );
 };
 
-const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tExists, policy }) => {
-  if (showMissedInstalment) {
-    return (
-      <PolicyNotification
-        type="warning"
-        label={tt('labels.missedInstalment')}
-        subtext={
-          <span style={{ display: 'inline' }}>
-            {tt(getFullBrandStringNameByUserType('labels.paymentOverduePrefix'))}
-            {' '}
-            <ShowPhoneNumber
-              maskedNumber={tt('pages.callUs.maskLinkLabel')}
-              unmaskedNumber="1300 332 048"
-            />
-            {' '}
-            {tt(getFullBrandStringNameByUserType('labels.paymentOverdueSuffix'))}
-          </span>
-        }
-      />
-    );
-  }
-  
-  // ... rest of existing code
-};
-
-export default connectIagBrand()(PolicyStatusNotification);
+export default ShowPhoneNumber;
