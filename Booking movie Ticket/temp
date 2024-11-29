@@ -3,7 +3,7 @@ import { trackingEventWrapper } from '../../../utils/trackingEventWrapper';
 import { SiteTrackingContext } from '../../../utils/SiteTrackingContext';
 import { ActionName, ElementType, Interaction } from '../../../models/tracking';
 import { type BrandDataProps } from '@iag-common/iag-brand-context';
-import NavigationLink from '../../../components/shared/NavigationLink';
+import { useBrowserDetect } from '../../../hooks/useBrowserDetect';
 
 type ShowPhoneNumberProps = {
   maskedNumber: string;
@@ -13,12 +13,12 @@ type ShowPhoneNumberProps = {
 const ShowPhoneNumber: React.FC<ShowPhoneNumberProps> = ({ maskedNumber, unmaskedNumber, tt }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [showLink, setShowLink] = useState(true);
+  const { isMobileApp } = useBrowserDetect();
 
   const trackingEventContext = React.useContext(SiteTrackingContext);
   const pageName = '/dashboard';
 
   const handleShowNumber = () => {
-    console.log('ShowNumber button clicked');
     setIsVisible(true);
     setShowLink(false);
 
@@ -36,10 +36,7 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps> = ({ maskedNumber, unmaske
     })();
   };
 
-  const handleNumberClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    console.log('Number clicked');
-    
+  const handleNumberClick = () => {
     trackingEventWrapper({
       trackingEventContext,
       pageName,
@@ -54,11 +51,27 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps> = ({ maskedNumber, unmaske
     })();
   };
 
+  // For mobile app, always show unmasked number
+  if (isMobileApp) {
+    return (
+      <NavigationLink
+        to={tt('pages.callUs.link')}
+        onClick={handleNumberClick}
+        newWindow={true}
+        isInternalLink={true}
+        className="text-blue-600 underline"
+      >
+        {unmaskedNumber}
+      </NavigationLink>
+    );
+  }
+
+  // Desktop view with masking logic
   return (
     <span className="inline-flex items-center">
       {isVisible ? (
         <NavigationLink
-          to={tt('constants.phoneNumbers.generalEnquiriesTellink')}
+          to={tt('pages.callUs.link')}
           onClick={handleNumberClick}
           newWindow={true}
           isInternalLink={true}
