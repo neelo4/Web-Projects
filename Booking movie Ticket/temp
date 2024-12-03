@@ -1,100 +1,50 @@
-import React, { useState } from 'react';
-import { trackingEventWrapper } from '../../../utils/trackingEventWrapper';
-import { SiteTrackingContext } from '../../../utils/SiteTrackingContext';
-import { ActionName, ElementType, Interaction } from '../../../models/tracking';
 import { type BrandDataProps } from '@iag-common/iag-brand-context';
-import { useBrowserDetect } from '../../../hooks/useBrowserDetect';
+import { Button } from '@iag/chroma-react-ui.button';
+import { ButtonGroup } from '@iag/chroma-react-ui.button-group';
+import type React from 'react';
+import { ShowPhoneNumber } from './ShowPhoneNumber';
 
-type ShowPhoneNumberProps = {
-  maskedNumber: string;
-  unmaskedNumber: string;
-} & BrandDataProps;
-
-const ShowPhoneNumber: React.FC<ShowPhoneNumberProps> = ({ maskedNumber, unmaskedNumber, tt }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const [showLink, setShowLink] = useState(true);
-  const { isMobileApp } = useBrowserDetect();
-
-  const trackingEventContext = React.useContext(SiteTrackingContext);
-  const pageName = '/dashboard';
-
-  const handleShowNumber = () => {
-    setIsVisible(true);
-    setShowLink(false);
-
-    trackingEventWrapper({
-      trackingEventContext,
-      pageName,
-      details: {
-        interaction: Interaction.CLICK,
-        element: {
-          name: ActionName.SHOW_NUMBER,
-          type: ElementType.LINK,
-          value: 'show-number'
-        }
-      }
-    })();
-  };
-
-  const handleNumberClick = () => {
-    trackingEventWrapper({
-      trackingEventContext,
-      pageName,
-      details: {
-        interaction: Interaction.CLICK,
-        element: {
-          name: ActionName.CALL_US,
-          type: ElementType.LINK,
-          value: unmaskedNumber.replace(/\s/g, '-')
-        }
-      }
-    })();
-  };
-
-  // For mobile app, always show unmasked number
-  if (isMobileApp) {
-    return (
-      <NavigationLink
-        to={tt('pages.callUs.link')}
-        onClick={handleNumberClick}
-        newWindow={true}
-        isInternalLink={true}
-        className="text-blue-600 underline"
-      >
-        {unmaskedNumber}
-      </NavigationLink>
-    );
-  }
-
-  // Desktop view with masking logic
+const UnsupportedModalButton: React.FC<PropsWithChildren<Props> & BrandDataProps> = ({
+  brand={getBrand()},
+  tt,
+  modalHeading,
+  modalContent,
+  showModal,
+  closeHandler,
+  hideBackButton
+}) => {
   return (
-    <span className="inline-flex items-center">
-      {isVisible ? (
-        <NavigationLink
-          to={tt('pages.callUs.link')}
-          onClick={handleNumberClick}
-          newWindow={true}
-          isInternalLink={true}
-          className="text-blue-600 underline"
-        >
-          {unmaskedNumber}
-        </NavigationLink>
-      ) : (
-        <>
-          <span className="text-blue-600">{maskedNumber}</span>
-          {showLink && (
-            <button
-              onClick={handleShowNumber}
-              className="ml-1 text-blue-600 hover:text-blue-800 text-sm underline focus:outline-none"
-              style={{ verticalAlign: 'baseline' }}
-            >
-              {tt('pages.callUs.showNumberText')}
-            </button>
+    <div>
+      <Modal
+        brand={brand}
+        className="pv-mfe-modal"
+        describedby=""
+        id="unsupported-modal"
+        isOpen={showModal}
+        labelledby={modalHeading}
+        onClose={closeHandler}
+      >
+        <h3 className="h3" data-testid="unsupported-modal-heading">
+          {modalHeading}
+        </h3>
+        <div data-testid="modal-content">{modalContent}</div>
+        <ButtonGroup className="pv-flex pv-flex-col sm:pv-flex-row pv-w-full pv-gap-y-0 sm:pv-gap-x-4 pv-m-0">
+          {!hideBackButton && (
+            <Button variant="primaryOutline" onClick={closeHandler} className="pv-m-0">
+              {tt('labels.back')}
+            </Button>
           )}
-        </>
-      )}
-    </span>
+          <div className="pv-m-0">
+            <ShowPhoneNumber
+              maskedNumber="Call 1300 .... Show number"
+              unmaskedNumber="1300 332 048"
+              tt={tt}
+            />
+          </div>
+        </ButtonGroup>
+      </Modal>
+    </div>
   );
 };
 
-export default ShowPhoneNumber;
+export default connectIagBrand()(UnsupportedModalButton);
