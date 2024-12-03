@@ -1,50 +1,123 @@
 import { type BrandDataProps } from '@iag-common/iag-brand-context';
 import { Button } from '@iag/chroma-react-ui.button';
-import { ButtonGroup } from '@iag/chroma-react-ui.button-group';
+import { Link } from '@iag/chroma-react-ui.link';
 import type React from 'react';
-import { ShowPhoneNumber } from './ShowPhoneNumber';
+import { useContext, useState } from 'react';
+import useBrowserDetect from '../../hooks/useBrowserDetect';
+import { ElementType, Interaction } from '../../models/SiteTracking';
+import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
+import NavigationLink from './NavigationLink';
 
-const UnsupportedModalButton: React.FC<PropsWithChildren<Props> & BrandDataProps> = ({
-  brand={getBrand()},
+type ShowPhoneNumberProps = {
+  maskedNumber: string;
+  unmaskedNumber: string;
+  variant?: 'link' | 'buttonPrimary';
+  className?: string;
+  onClick?: () => void;
+};
+
+const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
   tt,
-  modalHeading,
-  modalContent,
-  showModal,
-  closeHandler,
-  hideBackButton
+  maskedNumber,
+  unmaskedNumber,
+  variant = 'link',
+  className = '',
+  onClick
 }) => {
-  return (
-    <div>
-      <Modal
-        brand={brand}
-        className="pv-mfe-modal"
-        describedby=""
-        id="unsupported-modal"
-        isOpen={showModal}
-        labelledby={modalHeading}
-        onClose={closeHandler}
+  const [isVisible, setIsVisible] = useState(false);
+  const [showLink, setShowLink] = useState(true);
+  const trackingEventContext = useContext(SiteTrackingContext);
+  const { isMobileApp } = useBrowserDetect();
+
+  const revealNumberEvent = () => {
+    const revealNumber = {
+      pageName: '/dashboard',
+      interaction: Interaction.CLICK,
+      element: {
+        name: 'call-us',
+        value: 'show-number',
+        type: ElementType.LINK,
+      },
+    };
+    trackingEventContext.dispatch(revealNumber);
+  };
+
+  const clickedNumberEvent = () => {
+    const clickedNumber = {
+      pageName: '/dashboard',
+      interaction: Interaction.CLICK,
+      element: {
+        name: 'call-us',
+        value: '1300-332-048',
+        type: ElementType.LINK,
+      },
+    };
+    trackingEventContext.dispatch(clickedNumber);
+  };
+
+  const handleShowNumber = (e: React.MouseEvent) => {
+    revealNumberEvent();
+    e.preventDefault();
+    setIsVisible(true);
+    setShowLink(false);
+  };
+
+  const handleNumberClick = () => {
+    clickedNumberEvent();
+    onClick?.();
+  };
+
+  if (isMobileApp) {
+    return variant === 'buttonPrimary' ? (
+      <Button variant="primary" onClick={handleNumberClick} className={className}>
+        {unmaskedNumber}
+      </Button>
+    ) : (
+      <NavigationLink
+        to={tt('pages.callUs.link')}
+        onClick={handleNumberClick}
+        newWindow={true}
+        isInternalLink={true}
+        className={`text-blue-600 underline ${className}`}
       >
-        <h3 className="h3" data-testid="unsupported-modal-heading">
-          {modalHeading}
-        </h3>
-        <div data-testid="modal-content">{modalContent}</div>
-        <ButtonGroup className="pv-flex pv-flex-col sm:pv-flex-row pv-w-full pv-gap-y-0 sm:pv-gap-x-4 pv-m-0">
-          {!hideBackButton && (
-            <Button variant="primaryOutline" onClick={closeHandler} className="pv-m-0">
-              {tt('labels.back')}
-            </Button>
-          )}
-          <div className="pv-m-0">
-            <ShowPhoneNumber
-              maskedNumber="Call 1300 .... Show number"
-              unmaskedNumber="1300 332 048"
-              tt={tt}
-            />
-          </div>
-        </ButtonGroup>
-      </Modal>
-    </div>
+        {unmaskedNumber}
+      </NavigationLink>
+    );
+  }
+
+  if (variant === 'buttonPrimary') {
+    return (
+      <Button variant="primary" onClick={isVisible ? handleNumberClick : handleShowNumber} className={className}>
+        {isVisible ? unmaskedNumber : maskedNumber}
+      </Button>
+    );
+  }
+
+  return (
+    <span className={`inline-flex items-center ${className}`}>
+      {isVisible ? (
+        <NavigationLink
+          to={tt('pages.callUs.link')}
+          onClick={handleNumberClick}
+          newWindow={true}
+          isInternalLink={true}
+          className="text-blue-600 underline"
+        >
+          {unmaskedNumber}
+        </NavigationLink>
+      ) : (
+        <span className="text-blue-600">{maskedNumber}</span>
+      )}
+      {showLink && (
+        <Link
+          onClick={handleShowNumber}
+          className="text-blue-600 hover:text-blue-800 text-sm underline focus:outline-none"
+        >
+          {tt(`pages.callUs.showNumberText`)}
+        </Link>
+      )}
+    </span>
   );
 };
 
-export default connectIagBrand()(UnsupportedModalButton);
+export default ShowPhoneNumber;
