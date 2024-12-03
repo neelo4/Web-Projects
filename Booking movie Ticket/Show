@@ -1,0 +1,100 @@
+import { type BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
+import { Link } from '@iag/chroma-react-ui.link';
+import type React from 'react';
+import { useContext, useState } from 'react';
+import useBrowserDetect from '../../hooks/useBrowserDetect';
+import { ElementType, Interaction } from '../../models/SiteTracking';
+import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
+import NavigationLink from './NavigationLink';
+type ShowPhoneNumberProps = {
+  maskedNumber: string;
+  unmaskedNumber: string;
+};
+
+const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
+  tt,
+
+  maskedNumber,
+  unmaskedNumber,
+}) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [showLink, setShowLink] = useState(true);
+  const trackingEventContext = useContext(SiteTrackingContext);
+  const { isMobileApp } = useBrowserDetect();
+  console.log('is mobile app', isMobileApp);
+  const revealNumberEvent = () => {
+    const revealNumber = {
+      pageName: '/dashboard',
+      interaction: Interaction.CLICK,
+      element: {
+        name: 'call-us',
+        value: 'show-number',
+        type: ElementType.LINK,
+      },
+    };
+    trackingEventContext.dispatch(revealNumber);
+  };
+  const clickedNumberEvent = () => {
+    const clickedNumber = {
+      pageName: '/dashboard',
+      interaction: Interaction.CLICK,
+      element: {
+        name: 'call-us',
+        value: '1300-332-048',
+        type: ElementType.LINK,
+      },
+    };
+    trackingEventContext.dispatch(clickedNumber);
+  };
+  const handleShowNumber = (e: React.MouseEvent) => {
+    revealNumberEvent();
+    e.preventDefault();
+    setIsVisible(true);
+    setShowLink(false);
+  };
+
+  const handleNumberClick = () => {
+    clickedNumberEvent();
+  };
+  // For mobile app, always show unmasked number
+  if (isMobileApp) {
+    return (
+      <NavigationLink
+        to={tt('pages.callUs.link')}
+        onClick={handleNumberClick}
+        newWindow={true}
+        isInternalLink={true}
+        className="text-blue-600 underline"
+      >
+        {unmaskedNumber}
+      </NavigationLink>
+    );
+  }
+  // Desktop view with masking logic
+  return (
+    <span className="inline-flex items-center">
+      {isVisible ? (
+        <NavigationLink
+          to={tt('pages.callUs.link')}
+          onClick={handleNumberClick}
+          newWindow={true}
+          isInternalLink={true}
+          className="text-blue-600 underline"
+        >
+          {unmaskedNumber}
+        </NavigationLink>
+      ) : (
+        <span className="text-blue-600">{maskedNumber}</span>
+      )}
+      {showLink && (
+        <Link
+          onClick={handleShowNumber}
+          className="text-blue-600 hover:text-blue-800 text-sm underline focus:outline-none"
+        >
+          {tt(`pages.callUs.showNumberText`)}
+        </Link>
+      )}
+    </span>
+  );
+};
+export default connectIagBrand()(ShowPhoneNumber);
