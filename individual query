@@ -1,33 +1,28 @@
-// Add this new mapping function alongside your other mapping functions
-const mapCustomerRelationship = (customer_relationship: definitions["CustomerRelationship"]) => ({
-  effective_from: customer_relationship?.effective_from ?? "",
-});
+I'll help you draft a professional email regarding the VDI latency issues and their impact on productivity. Based on the chat message shown, I'll incorporate the specific challenges mentioned.
 
-// Then update your filterIndividualDetails function to use this mapper
-const filterIndividualDetails = ({ individual }: definitions["RetrieveResponse"]) => {
-  const {
-    party_id,
-    external_references,
-    names,
-    phone_contacts,
-    email_contacts,
-    date_of_birth,
-    staff,
-    addresses,
-    assessments,
-    customer_relationship,
-  } = individual ?? {};
+Subject: VDI Latency Issues Impact Report - Ticket #[Insert Ticket Number]
 
-  return {
-    party_id,
-    external_references,
-    names: mapNames(names),
-    phone_contacts,
-    email_contacts: mapEmailContacts(email_contacts),
-    date_of_birth,
-    staff,
-    addresses,
-    assessments,
-    customer_relationship: mapCustomerRelationship(customer_relationship),  // Use the mapper here
-  };
-};
+Dear Jayson,
+
+I'm writing to provide details about the significant VDI latency issues I experienced today that severely impacted my work productivity. Here are the specific challenges I encountered:
+
+1. Complete system unresponsiveness with pages failing to load
+2. Multiple unexpected VDI session disconnections requiring reconnection
+3. Persistent authentication failures requiring multiple login attempts
+
+These technical difficulties have resulted in:
+- Substantial work interruptions and lost productivity
+- Delayed response times to urgent tasks
+- Missed portions of scheduled meetings due to connectivity issues
+- Extended time spent on basic tasks due to system performance
+
+To address these issues, I've raised IT ticket #[Insert Ticket Number] and am currently awaiting a Citrix hard refresh. The total estimated time lost due to these technical difficulties is approximately [X] hours.
+
+Could you please help expedite this matter given its significant impact on daily operations and project deadlines?
+
+CC: Amir
+
+Best regards,
+[Your name]
+
+Would you like me to modify any part of this email to better reflect your situation or add any specific details about deadlines or meetings that were affected?
