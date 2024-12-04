@@ -1,123 +1,161 @@
-import { type BrandDataProps } from '@iag-common/iag-brand-context';
-import { Button } from '@iag/chroma-react-ui.button';
-import { Link } from '@iag/chroma-react-ui.link';
-import type React from 'react';
-import { useContext, useState } from 'react';
-import useBrowserDetect from '../../hooks/useBrowserDetect';
-import { ElementType, Interaction } from '../../models/SiteTracking';
+import React from 'react';
+import { fireEvent, screen } from '@testing-library/react';
 import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
-import NavigationLink from './NavigationLink';
+import ShowPhoneNumber from './ShowPhoneNumber';
+import { ElementType, Interaction } from '../../models/SiteTracking';
+import { renderWithProviders } from '../../test-utils/renderWithProviders';
 
-type ShowPhoneNumberProps = {
-  maskedNumber: string;
-  unmaskedNumber: string;
-  variant?: 'link' | 'buttonPrimary';
-  className?: string;
-  onClick?: () => void;
-};
+// Mock useBrowserDetect hook
+jest.mock('../../hooks/useBrowserDetect', () => ({
+  __esModule: true,
+  default: () => ({
+    isMobileApp: false
+  })
+}));
 
-const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
-  tt,
-  maskedNumber,
-  unmaskedNumber,
-  variant = 'link',
-  className = '',
-  onClick
-}) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const [showLink, setShowLink] = useState(true);
-  const trackingEventContext = useContext(SiteTrackingContext);
-  const { isMobileApp } = useBrowserDetect();
-
-  const revealNumberEvent = () => {
-    const revealNumber = {
-      pageName: '/dashboard',
-      interaction: Interaction.CLICK,
-      element: {
-        name: 'call-us',
-        value: 'show-number',
-        type: ElementType.LINK,
-      },
-    };
-    trackingEventContext.dispatch(revealNumber);
+describe('ShowPhoneNumber', () => {
+  const mockTrackingDispatch = jest.fn();
+  const defaultProps = {
+    maskedNumber: '1300 .... Show number',
+    unmaskedNumber: '1300 332 048'
   };
 
-  const clickedNumberEvent = () => {
-    const clickedNumber = {
-      pageName: '/dashboard',
-      interaction: Interaction.CLICK,
-      element: {
-        name: 'call-us',
-        value: '1300-332-048',
-        type: ElementType.LINK,
-      },
-    };
-    trackingEventContext.dispatch(clickedNumber);
-  };
-
-  const handleShowNumber = (e: React.MouseEvent) => {
-    revealNumberEvent();
-    e.preventDefault();
-    setIsVisible(true);
-    setShowLink(false);
-  };
-
-  const handleNumberClick = () => {
-    clickedNumberEvent();
-    onClick?.();
-  };
-
-  if (isMobileApp) {
-    return variant === 'buttonPrimary' ? (
-      <Button variant="primary" onClick={handleNumberClick} className={className}>
-        {unmaskedNumber}
-      </Button>
-    ) : (
-      <NavigationLink
-        to={tt('pages.callUs.link')}
-        onClick={handleNumberClick}
-        newWindow={true}
-        isInternalLink={true}
-        className={`text-blue-600 underline ${className}`}
-      >
-        {unmaskedNumber}
-      </NavigationLink>
+  const renderShowPhoneNumber = (props = {}) => {
+    return renderWithProviders(
+      <SiteTrackingContext.Provider value={{ dispatch: mockTrackingDispatch }}>
+        <ShowPhoneNumber {...defaultProps} {...props} />
+      </SiteTrackingContext.Provider>
     );
-  }
+  };
 
-  if (variant === 'buttonPrimary') {
-    return (
-      <Button variant="primary" onClick={isVisible ? handleNumberClick : handleShowNumber} className={className}>
-        {isVisible ? unmaskedNumber : maskedNumber}
-      </Button>
-    );
-  }
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-  return (
-    <span className={`inline-flex items-center ${className}`}>
-      {isVisible ? (
-        <NavigationLink
-          to={tt('pages.callUs.link')}
-          onClick={handleNumberClick}
-          newWindow={true}
-          isInternalLink={true}
-          className="text-blue-600 underline"
-        >
-          {unmaskedNumber}
-        </NavigationLink>
-      ) : (
-        <span className="text-blue-600">{maskedNumber}</span>
-      )}
-      {showLink && (
-        <Link
-          onClick={handleShowNumber}
-          className="text-blue-600 hover:text-blue-800 text-sm underline focus:outline-none"
-        >
-          {tt(`pages.callUs.showNumberText`)}
-        </Link>
-      )}
-    </span>
-  );
-};
+  describe('Desktop View', () => {
+    it('should initially show masked number and show number link', () => {
+      renderShowPhoneNumber();
+      
+      expect(screen.getByText(defaultProps.maskedNumber)).toBeInTheDocument();
+      expect(screen.getByText('pages.callUs.showNumberText')).toBeInTheDocument();
+    });
 
-export default ShowPhoneNumber;
+    it('should show unmasked number when show number is clicked', () => {
+      renderShowPhoneNumber();
+
+      fireEvent.click(screen.getByText('pages.callUs.showNumberText'));
+      
+      expect(screen.getByText(defaultProps.unmaskedNumber)).toBeInTheDocument();
+      expect(screen.queryByText('pages.callUs.showNumberText')).not.toBeInTheDocument();
+    });
+
+    it('should dispatch reveal event when show number is clicked', () => {
+      renderShowPhoneNumber();
+
+      fireEvent.click(screen.getByText('pages.callUs.showNumberText'));
+
+      expect(mockTrackingDispatch).toHaveBeenCalledWith({
+        pageName: '/dashboard',
+        interaction: Interaction.CLICK,
+        element: {
+          name: 'call-us',
+          value: 'show-number',
+          type: ElementType.LINK,
+        },
+      });
+    });
+
+    it('should dispatch click event when unmasked number is clicked', () => {
+      renderShowPhoneNumber();
+
+      // First reveal the number
+      fireEvent.click(screen.getByText('pages.callUs.showNumberText'));
+      // Then click the revealed number
+      fireEvent.click(screen.getByText(defaultProps.unmaskedNumber));
+
+      expect(mockTrackingDispatch).toHaveBeenCalledWith({
+        pageName: '/dashboard',
+        interaction: Interaction.CLICK,
+        element: {
+          name: 'call-us',
+          value: '1300-332-048',
+          type: ElementType.LINK,
+        },
+      });
+    });
+
+    it('should prevent default behavior when show number is clicked', () => {
+      renderShowPhoneNumber();
+
+      const preventDefault = jest.fn();
+      const showNumberLink = screen.getByText('pages.callUs.showNumberText');
+      
+      fireEvent.click(showNumberLink, { preventDefault });
+      
+      expect(preventDefault).toHaveBeenCalled();
+    });
+  });
+
+  describe('Mobile App View', () => {
+    beforeEach(() => {
+      jest.resetModules();
+      jest.mock('../../hooks/useBrowserDetect', () => ({
+        __esModule: true,
+        default: () => ({
+          isMobileApp: true
+        })
+      }));
+    });
+
+    it('should always show unmasked number without show number link', () => {
+      renderShowPhoneNumber();
+      
+      expect(screen.getByText(defaultProps.unmaskedNumber)).toBeInTheDocument();
+      expect(screen.queryByText('pages.callUs.showNumberText')).not.toBeInTheDocument();
+    });
+
+    it('should dispatch click event when number is clicked in mobile view', () => {
+      renderShowPhoneNumber();
+
+      fireEvent.click(screen.getByText(defaultProps.unmaskedNumber));
+
+      expect(mockTrackingDispatch).toHaveBeenCalledWith({
+        pageName: '/dashboard',
+        interaction: Interaction.CLICK,
+        element: {
+          name: 'call-us',
+          value: '1300-332-048',
+          type: ElementType.LINK,
+        },
+      });
+    });
+  });
+
+  describe('Navigation behavior', () => {
+    it('should render NavigationLink with correct props when number is revealed', () => {
+      renderShowPhoneNumber();
+
+      fireEvent.click(screen.getByText('pages.callUs.showNumberText'));
+      const numberLink = screen.getByText(defaultProps.unmaskedNumber).closest('a');
+
+      expect(numberLink).toHaveAttribute('href', 'pages.callUs.link');
+      expect(numberLink).toHaveClass('text-blue-600 underline');
+      expect(numberLink).toHaveAttribute('target', '_blank');
+    });
+  });
+
+  describe('Error handling', () => {
+    it('should handle missing tracking context gracefully', () => {
+      renderWithProviders(
+        <SiteTrackingContext.Provider value={null}>
+          <ShowPhoneNumber {...defaultProps} />
+        </SiteTrackingContext.Provider>
+      );
+
+      // Should not throw when clicking show number without tracking context
+      expect(() => {
+        fireEvent.click(screen.getByText('pages.callUs.showNumberText'));
+      }).not.toThrow();
+    });
+  });
+});
