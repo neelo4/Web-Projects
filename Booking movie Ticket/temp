@@ -7,31 +7,28 @@ interface Props {
   page?: string;
 }
 
-// Utility component to parse and replace phone numbers in text
-const TextWithPhoneNumber: React.FC<{ text: string; tt: (key: string) => string }> = ({ text, tt }) => {
-  const phoneRegex = /\b(1[38]00\s*\d{3}\s*\d{3})\b/g;
-  const parts = text.split(phoneRegex);
-  
-  return (
-    <span className="inline">
-      {parts.map((part, index) => {
-        if (phoneRegex.test(part)) {
-          return (
-            <ShowPhoneNumber
-              key={index}
-              maskedNumber={tt('pages.callUs.maskLinkLabel')}
-              unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
-              tt={tt}
-            />
-          );
-        }
-        return <span key={index}>{part}</span>;
-      })}
-    </span>
-  );
-};
-
 const ContactPageInfo: React.FC<BrandDataProps & Props> = ({ t, tt, page }) => {
+  const renderSubtitle = () => {
+    if (page) {
+      // For dashboard.page.subtitle with phone number
+      return (
+        <>
+          {tt('If you have an NRMA Insurance policy that is not listed in online account, give us a call on')}{' '}
+          <ShowPhoneNumber
+            maskedNumber={tt('pages.callUs.maskLinkLabel')}
+            unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
+            tt={tt}
+          />{'. '}
+          {'See our '}<a href={tt('constants.links.websiteAvailability')} className="text-blue-600 underline">
+            website
+          </a>{' for when we\'re available.'}
+        </>
+      );
+    }
+    // For policyInfo.subtitle (unchanged)
+    return tt('pages.dashboard.policyInfo.subtitle');
+  };
+
   return (
     <div className="pt-6 sm:py-6 md:py-6">
       <Alert 
@@ -45,10 +42,7 @@ const ContactPageInfo: React.FC<BrandDataProps & Props> = ({ t, tt, page }) => {
           </strong>
         </p>
         <p data-testid="ContactPageInfo.text">
-          <TextWithPhoneNumber
-            text={page ? tt(`pages.dashboard.${page}.subtitle`) : tt('pages.dashboard.policyInfo.subtitle')}
-            tt={tt}
-          />
+          {renderSubtitle()}
         </p>
       </Alert>
     </div>
