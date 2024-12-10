@@ -1,399 +1,208 @@
 import { type BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
-import { addDays } from 'date-fns';
-import { get } from 'lodash';
+import { Button, ButtonGroup, Icon, Link } from '@iag/chroma-react-ui.components';
+import { isBefore, startOfToday } from 'date-fns';
 import type React from 'react';
 import { useState } from 'react';
-import { FeatureName, useFeaturesConfig } from '../../../../../features-config';
-import { formatDate, parseZonedDate } from '../../../../../shared/utils/dateUtils';
-import { useBrandUtils } from '../../../../hooks/brand/useBrandUtils';
-import type { PolicySummary } from '../../../../models/DashboardDetails';
-import { PaymentSummaryStatus } from '../../../../models/PaymentSummaryStatus';
-import { PaymentType } from '../../../../models/PaymentType';
+import { formatDate, parseZonedDate } from '../../../shared/utils/dateUtils';
+import { useIdentityContext } from '../../contexts/identityContext';
+import { useBrandUtils } from '../../hooks/brand/useBrandUtils';
+import type { AssetSummary } from '../../models/AssetSummary';
+import { IdentityUserType } from '../../models/IdentityUserType';
+import {
+  ChangeType,
+  type PolicyChange,
+  PolicyChangeEnum,
+  type PolicyDetails,
+} from '../../models/PolicyDetails';
 import {
   PolicyStatus,
-  PolicyStatusOrder,
-  findBoundRenewalAfterEffectiveDate,
-  findEqualOrAfterChangeEffectiveDate,
-  findOverdueRenewal,
-  findRenewalPaidBeforeEffectiveDate,
-  findUnpaidFutureRenewalPolicy,
-  isCoexistencePolicy,
-  isCtpNSWPolicy,
-  isDateWithinSevenDays,
-  isFutureDatedCancellation,
-  isInactiveNSW,
-  isMigratedPolicy,
-  isMigratedRenewalPolicy,
-  isOverDueRenewals,
-  isPaidMigratedTermPolicy,
-  isPolicyChangeRenewal,
-  isPolicyInactive,
+  isRenewingStatusInRenewals,
   isSupportedRenewalProductType,
-  isUnpaid,
-} from '../../../../models/PolicyStatus';
-import PayLaterModal from '../../PayLaterModal';
-import PolicyNotification from './PolicyNotification';
+} from '../../models/PolicyStatus';
+import type { ProductType } from '../../models/ProductType';
+import { useIsPolicyAmend } from '../../utils/entitlementsUtils';
+import { getPostcodeFromAsset } from '../../utils/getPostcodefromAsset';
+import PayLaterModal from '../policies/PayLaterModal';
+import PaymentNavigationLink from '../policies/east-ui/PaymentNavigationLink';
+import AlertElement from './AlertElement';
+import ShowPhoneNumber from './ShowPhoneNumber';
+import UnsupportedModalButton from './UnsupportedModalButton';
 
-export type Props = {
-  policy: PolicySummary;
+type Props = {
+  renewalsData: PolicyChange;
+  productType: ProductType;
+  policyNumber: string;
+  policyDetails?: PolicyDetails;
+  assets?: AssetSummary[];
+  policyChanges?: PolicyChange[];
 };
 
-const PolicyStatusNotification: React.FC<Props & BrandDataProps> = ({ t, tt, tExists, policy }) => {
-  const {
-    customPayLater,
-    nextInstalmentDue,
-    paymentType,
-    paymentSummaryStatus,
-    policyChanges = [],
-    policyHistory,
-    policyStatus,
-    productType,
-    termInceptionDate,
-    termExpiryDate,
-  } = policy;
-
-  const {
-    [FeatureName.SHOW_NATIVE_RENEWAL_NOTIFICATION]: showNativeRenewalNotification,
-    [FeatureName.SHOW_COEXISTENCE_BANNER]: showCoexistenceBanner,
-    [FeatureName.SHOW_NZ_DESIGN]: showNZDesign,
-  } = useFeaturesConfig();
+export const RenewalNotification: React.FC<BrandDataProps & Props> = ({
+  tt,
+  t,
+  tExists,
+  renewalsData,
+  productType,
+  policyNumber,
+  policyDetails,
+  assets,
+  policyChanges,
+}) => {
   const { getFullBrandStringNameByUserType } = useBrandUtils({ tExists });
   const [howToPayModalOpen, setHowToPayModal] = useState(false);
-  const paymentOverDueText = tt('labels.paymentOverDueText');
-  const inactiveLabel = tt('labels.inactivePolicy');
 
-  const isInactivePolicy = isPolicyInactive(policyStatus);
-  const dateFormat = 'dd MMMM yyyy';
-  const isCtpNSW = isCtpNSWPolicy(policy);
-  const paymentOverdueHeading = 'labels.paymentOverdueHeading';
-  const overdueForRenewalHeading = 'labels.overdueForRenewal';
-  const futureDatedCancellation = isFutureDatedCancellation(policy);
-
-  if (futureDatedCancellation) {
-    return <></>;
-  }
-
-  if (isCtpNSW) {
-    if (isInactiveNSW(policy.termExpiryDate)) {
-      return <PolicyNotification type="primary" label={inactiveLabel} />;
-    }
-
-    if (policy.policyCurrentStatus === PolicyStatusOrder.DueForRenewal) {
-      return (
-        <PolicyNotification
-          type="warning"
-          label={`${tt('labels.dueForRenewal')} ${formatDate(
-            new Date(termExpiryDate),
-            dateFormat
-          )}`}
-        />
-      );
-    }
-
-    if (policy.policyCurrentStatus === PolicyStatusOrder.PaymentOverdue) {
-      return (
-        <PolicyNotification
-          type="warning"
-          label={tt(paymentOverdueHeading)}
-          subtext={t(getFullBrandStringNameByUserType(overdueForRenewalHeading))}
-        />
-      );
-    }
-
-    if (policy.policyCurrentStatus === PolicyStatusOrder.RenewalPaid) {
-      return (
-        <PolicyNotification
-          type="success"
-          label={`${tt('labels.dueRenewalPaid')} ${formatDate(
-            new Date(addDays(termExpiryDate, 1)),
-            dateFormat
-          )}`}
-        />
-      );
-    }
-
-    return (
-      <PolicyNotification
-        type="information"
-        label={tt('labels.coexistenceManageLabel')}
-        subtext={tt('labels.coexistenceManageSubtext')}
-      />
-    );
-  }
-
-  const migratedPolicy = isMigratedPolicy(policy);
-  const equalOrAfterChangeEffectiveDatePolicy = findEqualOrAfterChangeEffectiveDate(policyChanges);
-  if (equalOrAfterChangeEffectiveDatePolicy) {
-    return (
-      <PolicyNotification
-        type="warning"
-        label={
-          migratedPolicy
-            ? tt('labels.migratedPolicyOverdueRenewal', {
-                date: formatDate(
-                  parseZonedDate(equalOrAfterChangeEffectiveDatePolicy.termEffectiveDate),
-                  dateFormat
-                ),
-              })
-            : `${paymentOverDueText} ${tt(
-                getFullBrandStringNameByUserType('labels.makeCallForPaymentText')
-              )}`
-        }
-      />
-    );
-  }
-
-  if (isInactivePolicy) {
-    return <PolicyNotification type="black" label={inactiveLabel} />;
-  }
-
-  const showScheduledPolicy = policyStatus === PolicyStatus.Scheduled;
-  const renewalPaidBeforeEffectiveDate = findRenewalPaidBeforeEffectiveDate(policyChanges);
-  const effectiveDate =
-    renewalPaidBeforeEffectiveDate &&
-    formatDate(parseZonedDate(renewalPaidBeforeEffectiveDate.termEffectiveDate), dateFormat);
-  const renewalPaidLabel = getFullBrandStringNameByUserType('labels.renewalPaid');
-
-  if (isPaidMigratedTermPolicy(policy) && renewalPaidBeforeEffectiveDate) {
-    let label = '';
-    if (showNativeRenewalNotification) {
-      label = tt(renewalPaidLabel, { date: effectiveDate });
-    } else {
-      const isPaid = paymentSummaryStatus === PaymentSummaryStatus.Paid;
-      const isScheduledPaidRenewal = (showScheduledPolicy || isPaid) && policyHistory;
-
-      label = `${tt(getFullBrandStringNameByUserType('labels.migratedTermPolicy'), {
-        date: isScheduledPaidRenewal
-          ? formatDate(parseZonedDate(termInceptionDate), dateFormat)
-          : effectiveDate,
-      })}`;
-    }
-
-    return <PolicyNotification type="success" label={label} />;
-  }
-
-  const showPaymentOverdue =
-    policyStatus === PolicyStatus.PaymentOverdue && paymentType === PaymentType.PayNow;
-  // if using custom pay later feature - when custom pay flag is set along with overdue policy
-  if (customPayLater && !showScheduledPolicy && nextInstalmentDue) {
-    return (
-      <PolicyNotification
-        type="warning"
-        label={
-          showPaymentOverdue
-            ? tt(paymentOverdueHeading)
-            : `${tt('labels.paymentDuePayLater')} ${formatDate(
-                new Date(nextInstalmentDue),
-                dateFormat
-              )}`
-        }
-        subtext={
-          showPaymentOverdue && t(getFullBrandStringNameByUserType(overdueForRenewalHeading))
-        }
-      />
-    );
-  }
-
-  const unpaidFutureRenewalPolicy = findUnpaidFutureRenewalPolicy(policyChanges);
-  const boundRenewalAfterEffectiveDate = findBoundRenewalAfterEffectiveDate(policyChanges);
-  if (showPaymentOverdue && !boundRenewalAfterEffectiveDate) {
-    // overdue is high priority
-    return (
-      <PolicyNotification
-        type="warning"
-        label={tt(paymentOverdueHeading)}
-        subtext={t(getFullBrandStringNameByUserType(overdueForRenewalHeading))}
-      />
-    );
-  }
-
+  const { isUserType } = useIdentityContext();
+  const canAmend = useIsPolicyAmend(policyDetails?.entitlements);
+  const hasAmendAccess = policyDetails?.entitlements ? canAmend : true;
+  const isPaymentsEntitlementCreate = isUserType([
+    IdentityUserType.PARTNER_CUSTOMER,
+    IdentityUserType.IAG_CUSTOMER,
+  ]);
+  const renewalEnabled = isSupportedRenewalProductType(productType);
   const showMissedInstalment =
-    policyStatus === PolicyStatus.PaymentOverdue && paymentType === PaymentType.DirectDebit;
-  if (showMissedInstalment) {
-    // missed instalment is high priority
+    policyDetails.policyStatus === PolicyStatus.PaymentOverdue && policyDetails.directDebit;
+
+  const showPhoneIcon = !renewalEnabled || (renewalEnabled && showMissedInstalment);
+
+  const { number, changeStatus, termEffectiveDate } = renewalsData;
+
+  const dateFormat = 'dd MMMM yyyy';
+
+  const publicPath = window.__CLIENT_VARS__?.publicPath || '/';
+  const renewalLink = `${publicPath}policyrenew/policies/${productType}/${policyNumber}/change/${number}/renew/summary`;
+  const renewalsStartDate = formatDate(parseZonedDate(termEffectiveDate), dateFormat);
+
+  const renewalsWithDirectDebit = policyChanges?.filter(
+    (change) =>
+      change?.changeType === ChangeType.RENEWAL &&
+      (change?.changeStatus === PolicyChangeEnum.RENEWING ||
+        change?.changeStatus === PolicyChangeEnum.QUOTED) &&
+      change?.payments?.direct_debit === true
+  );
+  const shouldNotifyPayment =
+    !renewalsWithDirectDebit?.length &&
+    (changeStatus === PolicyChangeEnum.RENEWING || changeStatus === PolicyChangeEnum.QUOTED);
+  const shouldNotifyReviewRenewal = true;
+
+  // renewalsData !== null &&
+  // renewalsData.changeStatus !== PolicyChangeEnum.BOUND &&
+  // renewalsData.changeStatus !== PolicyChangeEnum.NOT_TAKEN &&
+  // !shouldNotifyPayment;
+
+  const renewalsButtonLabel = tt('pages.policyDetails.renewals.button');
+
+  const unpaidRenewals = policyChanges?.find(
+    (change) =>
+      change?.changeType === ChangeType.RENEWAL &&
+      change?.changeStatus === PolicyChangeEnum.RENEWING &&
+      isBefore(startOfToday(), new Date(change?.termEffectiveDate))
+  );
+
+  const renderPaymentButton = () => {
     return (
-      <PolicyNotification
-        type="warning"
-        label={tt('labels.missedInstalment')}
-        subtext={t(getFullBrandStringNameByUserType('labels.missedInstalmentSubtext'))}
-      />
-    );
-  }
-
-  if (showScheduledPolicy) {
-    return (
-      <PolicyNotification
-        type="information"
-        label={`${tt(getFullBrandStringNameByUserType('labels.scheduledPolicy'))} ${formatDate(
-          parseZonedDate(termInceptionDate),
-          dateFormat
-        )}`}
-      />
-    );
-  }
-
-  const isSelfServiceableProductRenewal = isSupportedRenewalProductType(productType);
-  const isActiveOverdueRenewal =
-    boundRenewalAfterEffectiveDate &&
-    isOverDueRenewals(boundRenewalAfterEffectiveDate.termEffectiveDate);
-  const isOverdueRenewalPayNow =
-    boundRenewalAfterEffectiveDate &&
-    isUnpaid(paymentSummaryStatus) &&
-    paymentType === PaymentType.PayNow;
-  const renderRenewalNotifications = (): JSX.Element | null => {
-    if (isOverdueRenewalPayNow && isActiveOverdueRenewal) {
-      return (
-        <>
-          <PolicyNotification
-            type="error"
-            label={
-              migratedPolicy
-                ? tt('labels.migratedPolicyOverdueRenewal', {
-                    date: formatDate(
-                      parseZonedDate(boundRenewalAfterEffectiveDate.termEffectiveDate),
-                      dateFormat
-                    ),
-                  })
-                : `${tt('labels.renewalOverDueNative')} ${formatDate(
-                    parseZonedDate(boundRenewalAfterEffectiveDate?.termEffectiveDate),
-                    dateFormat
-                  )}. ${tt('labels.payNowText')}`
-            }
-            onLinkClick={() => setHowToPayModal(true)}
-          />
-          <PayLaterModal isOpen={howToPayModalOpen} onClose={() => setHowToPayModal(false)} />
-        </>
-      );
-    }
-
-    if (unpaidFutureRenewalPolicy) {
-      const isDirectDebitPolicy = unpaidFutureRenewalPolicy.payments?.direct_debit === true;
-      if (isDirectDebitPolicy) {
-        return (
-          <PolicyNotification
-            type="information"
-            label={`${tt('labels.autoRenew', {
-              date: formatDate(
-                parseZonedDate(unpaidFutureRenewalPolicy.termEffectiveDate),
-                dateFormat
-              ),
-            })} `}
-            onLinkClick={() => setHowToPayModal(true)}
-          />
-        );
-      }
-      if (migratedPolicy || !isSelfServiceableProductRenewal) {
-        const renewalLabel = tt(
-          `labels.${
-            isMigratedRenewalPolicy(policyChanges)
-              ? 'migratedRenewalPolicyRenewingOn'
-              : 'migratedPolicyRenewingOn'
-          }`
-        );
-
-        return (
-          <PolicyNotification
-            type="warning"
-            label={`${renewalLabel} ${formatDate(
-              parseZonedDate(unpaidFutureRenewalPolicy.termEffectiveDate),
-              dateFormat
-            )}`}
-          />
-        );
-      }
-      return (
-        <>
-          <PolicyNotification
-            type="warning"
-            label={`${tt('labels.renewalPaymentDue', {
-              date: formatDate(
-                parseZonedDate(unpaidFutureRenewalPolicy.termEffectiveDate),
-                dateFormat
-              ),
-            })} `}
-            onLinkClick={() => setHowToPayModal(true)}
-          />
-          <PayLaterModal isOpen={howToPayModalOpen} onClose={() => setHowToPayModal(false)} />
-        </>
-      );
-    }
-
-    if (renewalPaidBeforeEffectiveDate) {
-      return (
-        <PolicyNotification
-          type={'success'}
-          label={`${tt(renewalPaidLabel, {
-            date: formatDate(
-              parseZonedDate(get(renewalPaidBeforeEffectiveDate, 'termEffectiveDate')),
-              dateFormat
-            ),
-          })}`}
+      hasAmendAccess &&
+      isPaymentsEntitlementCreate &&
+      (assets && unpaidRenewals?.payments?.direct_debit === false ? (
+        <PaymentNavigationLink
+          productType={productType}
+          policyNumber={policyNumber}
+          postcode={getPostcodeFromAsset(assets)}
+          className="pv-m-0"
+          selectedVersionNumber={unpaidRenewals?.versionNumber}
         />
-      );
-    }
-
-    const overdueRenewals = findOverdueRenewal(policyChanges);
-    const showOverDueRenewals =
-      overdueRenewals && isOverDueRenewals(overdueRenewals.termEffectiveDate);
-    if (overdueRenewals && !showOverDueRenewals) {
-      return <PolicyNotification type="information" label={inactiveLabel} />;
-    }
-
-    return (
-      <PolicyNotification type="success" label={tt(renewalPaidLabel, { date: effectiveDate })} />
+      ) : (
+        <Button variant="primary" className="pv-m-0" onClick={() => setHowToPayModal(true)}>
+          {tt('pages.policyDetails.renewals.howToPay')}
+        </Button>
+      ))
     );
   };
 
-  if (isPolicyChangeRenewal(policyChanges)) {
-    const renderedisPolicyChangeRenewalUI = renderRenewalNotifications();
-    if (renderedisPolicyChangeRenewalUI !== null) {
-      return renderedisPolicyChangeRenewalUI;
-    }
+  const viewRenewalButton = () => {
+    return (
+      <Link href={renewalLink} className="pv-m-0 pv-no-underline" variant="buttonPrimaryOutline">
+        {renewalsButtonLabel}
+      </Link>
+    );
+  };
+
+  const renderUnsupportedRenewalModal = () => {
+    return (
+      <UnsupportedModalButton
+        buttonVariant={'cta2'}
+        modalHeading={tt('constants.unavailableAssetChangeModal.title')}
+        modalContent={t('constants.unavailableAssetChangeModal.unsupportedPolicyDescription', {
+          policyNumber,
+        })}
+        policyNumber={policyNumber}
+      >
+        {renewalsButtonLabel}
+        <Icon className="i-phone pv-ml-4 pv-text-xl" />
+      </UnsupportedModalButton>
+    );
+  };
+
+  if (shouldNotifyReviewRenewal) {
+    return (
+      <AlertElement
+        variant="warning"
+        trackingName="policy-due-for-renewal-banner"
+        className="pv-mb-8"
+      >
+        <p>
+          <strong>
+            {tt(getFullBrandStringNameByUserType('pages.policyDetails.renewals.title'))}
+          </strong>
+        </p>
+        <div>
+          {tt('pages.policyDetails.renewals.reviewText', { date: renewalsStartDate })}
+          {tExists('pages.callUs.showNumberText') ? (
+            <ShowPhoneNumber
+              maskedNumber={tt('pages.callUs.maskLinkLabel')}
+              unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
+              prefix={tt('pages.policyDetails.renewals.changesTextPrefix')}
+              suffix={tt('pages.policyDetails.renewals.changesTextSuffix')}
+            />
+          ) : (
+            t('pages.policyDetails.renewals.changesText', { date: renewalsStartDate })
+          )}
+        </div>
+        <ButtonGroup className="alert-btn-group">
+          {!showPhoneIcon ? viewRenewalButton() : renderUnsupportedRenewalModal()}
+        </ButtonGroup>
+      </AlertElement>
+    );
   }
 
-  const showPaymentDue =
-    policyStatus === PolicyStatus.PaymentDue && paymentType === PaymentType.PayNow;
-  const showNextInstalment =
-    policyStatus === PolicyStatus.Active && paymentType === PaymentType.DirectDebit;
-  if (isDateWithinSevenDays(policy?.nextInstalmentDue)) {
+  if (shouldNotifyPayment) {
     return (
       <>
-        {showPaymentDue && (
-          <PolicyNotification
-            type={showNZDesign ? 'warning' : 'information'}
-            label={
-              showNZDesign
-                ? tt('labels.paymentDuePayLater') +
-                  formatDate(new Date(nextInstalmentDue), dateFormat)
-                : tt('labels.paymentPaidAutomatically') +
-                  formatDate(new Date(nextInstalmentDue), dateFormat)
-            }
-          />
-        )}
-        {showNextInstalment && (
-          <PolicyNotification
-            type="information"
-            label={
-              tt('labels.paymentPaidAutomatically') +
-              formatDate(new Date(nextInstalmentDue), dateFormat)
-            }
-          />
+        <AlertElement
+          variant="warning"
+          trackingName="renewal-payment-required-banner"
+          className="pv-mb-10"
+        >
+          <p>
+            <strong>{tt('pages.policyDetails.renewals.paymentRequired.title')}</strong>
+          </p>
+          <p>
+            {tt('pages.policyDetails.renewals.paymentRequired.message', {
+              date: renewalsStartDate,
+            })}
+          </p>
+          <ButtonGroup className="alert-btn-group">
+            {!showPhoneIcon ? viewRenewalButton() : renderUnsupportedRenewalModal()}
+            {isRenewingStatusInRenewals(policyChanges) && renderPaymentButton()}
+          </ButtonGroup>
+        </AlertElement>
+        {howToPayModalOpen && (
+          <PayLaterModal isOpen={true} onClose={() => setHowToPayModal(false)} />
         )}
       </>
     );
   }
 
-  if (showCoexistenceBanner && isCoexistencePolicy(policy)) {
-    return (
-      <PolicyNotification
-        type="information"
-        label={tt('labels.coexistenceManageLabel')}
-        subtext={tt('labels.coexistenceManageSubtext')}
-      />
-    );
-  }
-
-  return <></>;
+  return null;
 };
 
-export default connectIagBrand()(PolicyStatusNotification);
+export default connectIagBrand()(RenewalNotification);
