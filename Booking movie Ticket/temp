@@ -1,104 +1,123 @@
-import { type BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
-import {
-  Button,
-  ButtonGroup,
-  type ButtonProps,
-  Link,
-  Modal,
-} from '@iag/chroma-react-ui.components';
-import type React from 'react';
-import { type PropsWithChildren, useContext, useState } from 'react';
-import { useRecordReferredToAssistedChannel } from '../../hooks/useRecordContactHistory';
-import { ActionName, ElementName, ElementType, Interaction } from '../../models/SiteTracking';
-import { getBrand } from '../../models/brands';
-import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
-import ShowPhoneNumber from './ShowPhoneNumber';
+import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { UnsupportedModalButton } from './UnsupportedModalButton';
 
-// ... rest of the imports and types remain same
+describe('UnsupportedModalButton', () => {
+  const mockButtonTitle = 'Test Button';
+  const mockTExists = jest.fn();
+  const mockTt = jest.fn();
 
-const UnsupportedModalButton: React.FC<PropsWithChildren<Props> & BrandDataProps> = ({
-  buttonVariant = 'primary',
-  children,
-  hideBackButton = false,
-  modalHeading,
-  modalContent,
-  policyNumber,
-  testid = '',
-  tt,
-  tExists,
-  trackClick,
-  trackingName,
-}) => {
-  // ... existing state and handlers remain same
+  beforeEach(() => {
+    mockTExists.mockReset();
+    mockTt.mockReset();
+  });
 
-  const renderCallButton = () => {
-    if (tExists('pages.callUs.showNumberText')) {
-      return (
-        <ShowPhoneNumber
-          maskedNumber={tt('pages.callUs.maskLinkLabel')}
-          unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
-          tt={tt}
-          variant="buttonPrimary"
-          prefix={tt('constants.documentTypes.callUsButtonRevealPhoneNumber')}
-          pageName="/modal"
-        />
-      );
-    }
+  // Existing test for non-NRMA brands
+  it('link in modal should work correctly for other brands', () => {
+    mockTExists.mockReturnValue(false);
+    mockTt.mockImplementation((key) => {
+      if (key === 'constants.phoneNumbers.generalEnquiriesTelLink') return 'tel:0800200252';
+      return key;
+    });
 
-    return (
-      <Link
-        className="pv-m-0"
-        href={tt('constants.phoneNumbers.generalEnquiriesTelLink')}
-        variant="buttonPrimary"
-        onClick={() =>
-          trackClick?.({
-            name: tt('constants.cancelPolicyModal.siteTracking.elementsName.call'),
-            type: buttonType,
-            interaction: clickInteraction,
-          })
-        }
-      >
-        {tt('constants.documentTypes.callUsButton')}
-      </Link>
+    render(
+      <UnsupportedModalButton
+        buttonTitle={mockButtonTitle}
+        tt={mockTt}
+        tExists={mockTExists}
+      />
     );
-  };
 
-  return (
-    <div data-testid={testid}>
-      <Button
-        className="pv-m-0 pv-w-full sm:pv-w-fit md:pv-w-fit"
-        variant={buttonVariant}
-        onClick={clickHandler}
-        data-testid="unsupported-modal-button"
-        data-tracking-name={trackingName}
-      >
-        {children}
-      </Button>
-      <Modal
-        appElement={document.getElementById('root')}
-        brand={getBrand()}
-        className="pv-mfe-modal"
-        describedby=""
-        id="unsupported-modal"
-        isOpen={showModal}
-        labelledby={modalHeading}
-        onClose={closeHandler}
-      >
-        <h3 className="h3" data-testid="unsupported-modal-heading">
-          {modalHeading}
-        </h3>
-        <div data-testid="modal-content">{modalContent}</div>
-        <ButtonGroup className="pv-flex pv-flex-col sm:pv-flex-row pv-w-full pv-gap-y-0 sm:pv-gap-x-4 pv-m-0">
-          {!hideBackButton && (
-            <Button variant="primaryOutline" onClick={closeHandler} className="pv-m-0">
-              {tt('labels.back')}
-            </Button>
-          )}
-          {renderCallButton()}
-        </ButtonGroup>
-      </Modal>
-    </div>
-  );
-};
+    userEvent.click(screen.getByRole('button', { name: mockButtonTitle }));
+    expect(screen.getByText('Call us on 0800 200 252').closest('a')).toHaveAttribute(
+      'href',
+      'tel:0800200252'
+    );
+  });
 
-export default connectIagBrand()(UnsupportedModalButton);
+  // New test for NRMA brand with ShowPhoneNumber
+  it('show number component should work correctly in modal for NRMA', () => {
+    mockTExists.mockImplementation((key) => key === 'pages.callUs.showNumberText');
+    mockTt.mockImplementation((key) => {
+      switch (key) {
+        case 'pages.callUs.maskLinkLabel':
+          return '1300 XXX XXX';
+        case 'constants.phoneNumbers.generalEnquiries':
+          return '1300 332 048';
+        case 'constants.documentTypes.callUsButtonRevealPhoneNumber':
+          return 'Call us on';
+        case 'pages.callUs.showNumberText':
+          return 'Show number';
+        default:
+          return key;
+      }
+    });
+
+    render(
+      <UnsupportedModalButton
+        buttonTitle={mockButtonTitle}
+        tt={mockTt}
+        tExists={mockTExists}
+      />
+    );
+
+    // Click to open modal
+    userEvent.click(screen.getByRole('button', { name: mockButtonTitle }));
+
+    // Initially should show masked number
+    expect(screen.getByText('1300 XXX XXX')).toBeInTheDocument();
+    expect(screen.getByText('Show number')).toBeInTheDocument();
+
+    // Click show number
+    userEvent.click(screen.getByText('Show number'));
+
+    // Should now show unmasked number
+    const numberLink = screen.getByText('1300 332 048');
+    expect(numberLink).toBeInTheDocument();
+    expect(numberLink.closest('a')).toHaveAttribute('href', 'tel:1300332048');
+    
+    // Show number link should be gone
+    expect(screen.queryByText('Show number')).not.toBeInTheDocument();
+  });
+
+  it('should handle tracking events when showing and clicking number', () => {
+    mockTExists.mockReturnValue(true);
+    const mockTrackingContext = {
+      dispatch: jest.fn()
+    };
+
+    render(
+      <UnsupportedModalButton
+        buttonTitle={mockButtonTitle}
+        tt={mockTt}
+        tExists={mockTExists}
+        trackingEventContext={mockTrackingContext}
+      />
+    );
+
+    userEvent.click(screen.getByRole('button', { name: mockButtonTitle }));
+    userEvent.click(screen.getByText('Show number'));
+
+    expect(mockTrackingContext.dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        interaction: 'CLICK',
+        element: expect.objectContaining({
+          name: 'call-us',
+          value: 'show-number'
+        })
+      })
+    );
+
+    userEvent.click(screen.getByText('1300 332 048'));
+
+    expect(mockTrackingContext.dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        interaction: 'CLICK',
+        element: expect.objectContaining({
+          name: 'call-us',
+          value: '1300-332-048'
+        })
+      })
+    );
+  });
+});
