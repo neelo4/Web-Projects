@@ -1,21 +1,29 @@
 import { type BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
+import { Button, type LinkProps } from '@iag/chroma-react-ui.components';
 import { Link } from '@iag/chroma-react-ui.link';
 import type React from 'react';
-import { useContext, useState } from 'react';
+import { type ReactNode, useContext, useState } from 'react';
 import useBrowserDetect from '../../hooks/useBrowserDetect';
-import { ElementType, Interaction } from '../../models/SiteTracking';
+import { ElementType, Interaction, PageName } from '../../models/SiteTracking';
 import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
 import NavigationLink from './NavigationLink';
 type ShowPhoneNumberProps = {
   maskedNumber: string;
   unmaskedNumber: string;
+  variant?: LinkProps['variant'];
+  prefix?: string | ReactNode;
+  pageName?: string;
+  suffix?: string | ReactNode;
 };
 
 const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
   tt,
-
   maskedNumber,
   unmaskedNumber,
+  variant,
+  prefix,
+  suffix,
+  pageName,
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [showLink, setShowLink] = useState(true);
@@ -24,7 +32,7 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
   console.log('is mobile app', isMobileApp);
   const revealNumberEvent = () => {
     const revealNumber = {
-      pageName: '/dashboard',
+      pageName: pageName || PageName.DASHBOARD,
       interaction: Interaction.CLICK,
       element: {
         name: 'call-us',
@@ -36,7 +44,7 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
   };
   const clickedNumberEvent = () => {
     const clickedNumber = {
-      pageName: '/dashboard',
+      pageName: pageName || PageName.DASHBOARD,
       interaction: Interaction.CLICK,
       element: {
         name: 'call-us',
@@ -58,7 +66,13 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
   };
   // For mobile app, always show unmasked number
   if (isMobileApp) {
-    return (
+    return variant === 'buttonPrimary' ? (
+      <Button variant="primary" onClick={handleNumberClick} className="pv-m-0">
+        <p> {prefix && <>{prefix} </>}</p>
+
+        {unmaskedNumber}
+      </Button>
+    ) : (
       <NavigationLink
         to={tt('pages.callUs.link')}
         onClick={handleNumberClick}
@@ -70,30 +84,67 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
       </NavigationLink>
     );
   }
+  if (variant === 'buttonPrimary') {
+    return (
+      <Button
+        variant="primary"
+        onClick={isVisible ? handleNumberClick : handleShowNumber}
+        className="pv-m-0 gap-1"
+      >
+        {prefix && <>{prefix} </>}
+        <span className="inline-flex items-center gap-1">
+          {isVisible ? (
+            <NavigationLink
+              to={tt('pages.callUs.link')}
+              onClick={handleNumberClick}
+              newWindow={true}
+              isInternalLink={true}
+              className="text-white no-underline"
+            >
+              {unmaskedNumber}
+            </NavigationLink>
+          ) : (
+            <span className="text-blue-600 no-underline">{maskedNumber}</span>
+          )}
+          {showLink && (
+            <Link
+              onClick={handleShowNumber}
+              className="text-white hover:text-blue-800 text-sm focus:outline-none"
+            >
+              {tt(`pages.callUs.showNumberText`)}
+            </Link>
+          )}
+        </span>
+      </Button>
+    );
+  }
+
   // Desktop view with masking logic
   return (
-    <span className="inline-flex items-center">
+    <span className="flex flex-wrap gap-1 self-center">
+      {prefix && <span>{prefix} </span>}
       {isVisible ? (
         <NavigationLink
           to={tt('pages.callUs.link')}
           onClick={handleNumberClick}
           newWindow={true}
           isInternalLink={true}
-          className="text-blue-600 underline"
+          className="text-blue-600 underline self-center"
         >
           {unmaskedNumber}
         </NavigationLink>
       ) : (
-        <span className="text-blue-600">{maskedNumber}</span>
+        <span className="text-blue-600 self-center">{maskedNumber}</span>
       )}
       {showLink && (
         <Link
           onClick={handleShowNumber}
-          className="text-blue-600 hover:text-blue-800 text-sm underline focus:outline-none"
+          className="text-blue-600 hover:text-blue-800 text-sm focus:outline-none no-underline self-center"
         >
           {tt(`pages.callUs.showNumberText`)}
         </Link>
       )}
+      {suffix && <span>{suffix} </span>}
     </span>
   );
 };
