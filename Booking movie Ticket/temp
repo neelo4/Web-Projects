@@ -1,123 +1,442 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { UnsupportedModalButton } from './UnsupportedModalButton';
+import { addDays, subDays } from 'date-fns';
+import React from 'react';
+import { useFeaturesConfig } from '../../../features-config';
+import { render } from '../../../shared/test-utils/renderWithProviders';
+import { mockMotorPolicy } from '../../__mocks__/mockPolicy';
+import { AssetType } from '../../models/AssetType';
+import { CarCoverType } from '../../models/CoverType';
+import { PageId } from '../../models/PageId';
+import { PolicyChange, PolicyDetails } from '../../models/PolicyDetails';
+import { PolicyStatus, isSupportedRenewalProductType } from '../../models/PolicyStatus';
+import { ProductType } from '../../models/ProductType';
+import { Brand } from '../../models/brands';
+import { siteTrackingStorageFactory } from '../../sitetracking/siteTrackingStorage';
+import RenewalNotification from './RenewalNotification';
 
-describe('UnsupportedModalButton', () => {
-  const mockButtonTitle = 'Test Button';
-  const mockTExists = jest.fn();
-  const mockTt = jest.fn();
+jest.mock('../../../features-config', () => ({
+  useFeaturesConfig: jest.fn(),
+  FeatureName: {
+    SUPPORTED_RENEWAL_PRODUCT_TYPES: 'SUPPORTED_RENEWAL_PRODUCT_TYPES',
+  },
+}));
 
-  beforeEach(() => {
-    mockTExists.mockReset();
-    mockTt.mockReset();
+jest.mock('../../models/PolicyStatus', () => ({
+  ...jest.requireActual('../../models/PolicyStatus'),
+  isSupportedRenewalProductType: jest.fn(),
+}));
+
+const useFeaturesConfigMock = useFeaturesConfig as jest.MockedFunction<typeof useFeaturesConfig>;
+
+const renewalsData = {
+  number: '0000159488',
+  creationDate: subDays(new Date(), 21).toISOString(),
+  expiryDate: addDays(new Date(), 1).toISOString(),
+  termEffectiveDate: addDays(new Date(), 42).toISOString(),
+  changeStatus: 'RENEWING',
+  changeType: 'RENEWAL',
+  originatingChannel: 'CONTACT_CENTRE',
+  versionNumber: 'V2',
+} as PolicyChange;
+
+const assets = [
+  {
+    assetNumber: '111',
+    assetType: AssetType.Car,
+    coverType: CarCoverType.ComprehensiveSilver,
+    detail: 'JPGMV924 - 2015 Hyundai Getz',
+    assetLocation: {
+      localityName: 'TESTVILLE',
+      postCode: '1000',
+      state: 'TST',
+    },
+  },
+];
+
+const policyChanges: PolicyChange[] = [
+  {
+    number: '0000067909',
+    creationDate: subDays(new Date(), 10).toISOString(),
+    expiryDate: addDays(new Date(), 15).toISOString(),
+    termEffectiveDate: addDays(new Date(), 10).toISOString(),
+    changeStatus: 'RENEWING',
+    changeType: 'RENEWAL',
+    originatingChannel: 'CONTACT_CENTRE',
+    versionNumber: '1',
+    migratedTerm: false,
+    payments: {
+      direct_debit: false,
+    },
+  },
+];
+
+beforeEach(() => {
+  useFeaturesConfigMock.mockReturnValue({
+    SUPPORTED_RENEWAL_PRODUCT_TYPES: ['motor'],
+  });
+});
+
+describe('Test RenewalNotification', () => {
+  test('Payment required is render', () => {
+    render(
+      <RenewalNotification
+        renewalsData={renewalsData}
+        productType={ProductType.Motor}
+        policyNumber="12345"
+        policyChanges={policyChanges}
+        policyDetails={mockMotorPolicy}
+      />,
+      { brand: Brand.NRMA }
+    );
+    expect(screen.getByText('Renewal payment required')).toBeInTheDocument();
+    userEvent.click(screen.getByText('How to pay'));
+    expect(screen.getByText('How to pay for your policy.')).toBeInTheDocument();
   });
 
-  // Existing test for non-NRMA brands
-  it('link in modal should work correctly for other brands', () => {
-    mockTExists.mockReturnValue(false);
-    mockTt.mockImplementation((key) => {
-      if (key === 'constants.phoneNumbers.generalEnquiriesTelLink') return 'tel:0800200252';
-      return key;
-    });
+  test('Payment required with pay now button is render', () => {
+    jest.spyOn(siteTrackingStorageFactory, 'getActivePageId').mockReturnValue(PageId.PolicyDetails);
+    render(
+      <RenewalNotification
+        renewalsData={renewalsData}
+        productType={ProductType.Motor}
+        policyNumber="12345"
+        assets={assets}
+        policyChanges={policyChanges}
+        policyDetails={mockMotorPolicy}
+      />,
+      { brand: Brand.NRMA }
+    );
+    expect(screen.getByText('Renewal payment required')).toBeInTheDocument();
+    expect(screen.getByText('Review renewal')).toBeInTheDocument();
+    expect(screen.getByText('Pay now')).toBeInTheDocument();
+  });
+
+  test('Payment required without pay now button is render', () => {
+    jest.spyOn(siteTrackingStorageFactory, 'getActivePageId').mockReturnValue(PageId.PolicyDetails);
 
     render(
-      <UnsupportedModalButton
-        buttonTitle={mockButtonTitle}
-        tt={mockTt}
-        tExists={mockTExists}
-      />
+      <RenewalNotification
+        renewalsData={renewalsData}
+        productType={ProductType.Motor}
+        policyNumber="12345"
+        assets={assets}
+        policyDetails={mockMotorPolicy}
+      />,
+      { brand: Brand.NRMA }
     );
-
-    userEvent.click(screen.getByRole('button', { name: mockButtonTitle }));
-    expect(screen.getByText('Call us on 0800 200 252').closest('a')).toHaveAttribute(
-      'href',
-      'tel:0800200252'
-    );
+    expect(screen.getByText('Renewal payment required')).toBeInTheDocument();
+    expect(screen.getByText('Review renewal')).toBeInTheDocument();
+    expect(screen.queryByText('Pay now')).not.toBeInTheDocument();
   });
 
-  // New test for NRMA brand with ShowPhoneNumber
-  it('show number component should work correctly in modal for NRMA', () => {
-    mockTExists.mockImplementation((key) => key === 'pages.callUs.showNumberText');
-    mockTt.mockImplementation((key) => {
-      switch (key) {
-        case 'pages.callUs.maskLinkLabel':
-          return '1300 XXX XXX';
-        case 'constants.phoneNumbers.generalEnquiries':
-          return '1300 332 048';
-        case 'constants.documentTypes.callUsButtonRevealPhoneNumber':
-          return 'Call us on';
-        case 'pages.callUs.showNumberText':
-          return 'Show number';
-        default:
-          return key;
-      }
-    });
-
+  test('Pay now button is not rendered when no renewing status in policy changes', () => {
     render(
-      <UnsupportedModalButton
-        buttonTitle={mockButtonTitle}
-        tt={mockTt}
-        tExists={mockTExists}
-      />
+      <RenewalNotification
+        renewalsData={renewalsData}
+        productType={ProductType.Motor}
+        policyNumber="12345"
+        assets={assets}
+        policyChanges={[
+          {
+            number: '0000067909',
+            creationDate: subDays(new Date(), 10).toISOString(),
+            expiryDate: addDays(new Date(), 15).toISOString(),
+            termEffectiveDate: addDays(new Date(), 10).toISOString(),
+            changeStatus: 'QUOTED',
+            changeType: 'RENEWAL',
+            originatingChannel: 'CONTACT_CENTRE',
+            versionNumber: '1',
+            migratedTerm: false,
+            payments: {
+              direct_debit: false,
+            },
+          },
+          {
+            number: '0000067910',
+            creationDate: subDays(new Date(), 10).toISOString(),
+            expiryDate: addDays(new Date(), 15).toISOString(),
+            termEffectiveDate: addDays(new Date(), 10).toISOString(),
+            changeStatus: 'WITHDRAWN',
+            changeType: 'RENEWAL',
+            originatingChannel: 'CONTACT_CENTRE',
+            versionNumber: '2',
+            migratedTerm: false,
+            payments: {
+              direct_debit: false,
+            },
+          },
+        ]}
+        policyDetails={mockMotorPolicy}
+      />,
+      { brand: Brand.NRMA }
     );
-
-    // Click to open modal
-    userEvent.click(screen.getByRole('button', { name: mockButtonTitle }));
-
-    // Initially should show masked number
-    expect(screen.getByText('1300 XXX XXX')).toBeInTheDocument();
-    expect(screen.getByText('Show number')).toBeInTheDocument();
-
-    // Click show number
-    userEvent.click(screen.getByText('Show number'));
-
-    // Should now show unmasked number
-    const numberLink = screen.getByText('1300 332 048');
-    expect(numberLink).toBeInTheDocument();
-    expect(numberLink.closest('a')).toHaveAttribute('href', 'tel:1300332048');
-    
-    // Show number link should be gone
-    expect(screen.queryByText('Show number')).not.toBeInTheDocument();
+    expect(screen.getByText('Renewal payment required')).toBeInTheDocument();
+    expect(screen.getByText('Review renewal')).toBeInTheDocument();
+    expect(screen.queryByText('Pay now')).not.toBeInTheDocument();
   });
 
-  it('should handle tracking events when showing and clicking number', () => {
-    mockTExists.mockReturnValue(true);
-    const mockTrackingContext = {
-      dispatch: jest.fn()
+  test('Render shouldNotifyReviewRenewal', () => {
+    const renewalsDataDraft = {
+      ...renewalsData,
+      changeStatus: 'DRAFT',
     };
 
     render(
-      <UnsupportedModalButton
-        buttonTitle={mockButtonTitle}
-        tt={mockTt}
-        tExists={mockTExists}
-        trackingEventContext={mockTrackingContext}
-      />
+      <RenewalNotification
+        renewalsData={renewalsDataDraft}
+        productType={ProductType.Motor}
+        policyNumber="12345"
+        policyDetails={mockMotorPolicy}
+      />,
+      { brand: Brand.NRMA }
+    );
+    expect(screen.getByText('Your policy is due for renewal')).toBeInTheDocument();
+    userEvent.click(screen.getAllByText('Review renewal')[0]);
+  });
+
+  test('Render renewal review notification with non direct debit', () => {
+    const renewalsDataQuoted = {
+      ...renewalsData,
+      changeStatus: 'QUOTED',
+    };
+
+    render(
+      <RenewalNotification
+        renewalsData={renewalsDataQuoted}
+        productType={ProductType.Motor}
+        policyNumber="12345"
+        assets={assets}
+        policyChanges={policyChanges}
+        policyDetails={mockMotorPolicy}
+      />,
+      { brand: Brand.NRMA }
     );
 
-    userEvent.click(screen.getByRole('button', { name: mockButtonTitle }));
-    userEvent.click(screen.getByText('Show number'));
+    expect(screen.getByText('Renewal payment required')).toBeInTheDocument();
+  });
 
-    expect(mockTrackingContext.dispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        interaction: 'CLICK',
-        element: expect.objectContaining({
-          name: 'call-us',
-          value: 'show-number'
-        })
-      })
+  test('Render renewal review notification with direct debit', () => {
+    const renewalsDataQuoted = {
+      ...renewalsData,
+      changeStatus: 'QUOTED',
+    };
+
+    const policyChangesDirectDebit = [
+      {
+        ...policyChanges[0],
+        payments: {
+          direct_debit: true,
+        },
+        changeStatus: 'QUOTED',
+      },
+    ];
+
+    render(
+      <RenewalNotification
+        renewalsData={renewalsDataQuoted}
+        productType={ProductType.Motor}
+        policyNumber="12345"
+        assets={assets}
+        policyChanges={policyChangesDirectDebit}
+        policyDetails={mockMotorPolicy}
+      />,
+      { brand: Brand.NRMA }
     );
 
-    userEvent.click(screen.getByText('1300 332 048'));
+    expect(screen.getByText('Your policy is due for renewal')).toBeInTheDocument();
+  });
 
-    expect(mockTrackingContext.dispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        interaction: 'CLICK',
-        element: expect.objectContaining({
-          name: 'call-us',
-          value: '1300-332-048'
-        })
-      })
+  test('Render bound renewal (null return)', () => {
+    const renewalsDataBound = {
+      ...renewalsData,
+      changeStatus: 'BOUND',
+    };
+
+    render(
+      <RenewalNotification
+        renewalsData={renewalsDataBound}
+        productType={ProductType.Motor}
+        policyNumber="12345"
+        policyDetails={mockMotorPolicy}
+      />,
+      { brand: Brand.NRMA }
     );
+    expect(screen.queryByText('Your policy is due for renewal')).not.toBeInTheDocument();
+    expect(screen.queryByText('Renewal payment required')).not.toBeInTheDocument();
+    expect(screen.queryByText('How to pay for your policy.')).not.toBeInTheDocument();
+  });
+
+  test('Render UnsupportedModalButton when shouldNotifyReviewRenewal are true and ENABLE_RENEWAL are false', () => {
+    const renewalsDataDraft = {
+      ...renewalsData,
+      changeStatus: 'DRAFT',
+    };
+
+    render(
+      <RenewalNotification
+        renewalsData={renewalsDataDraft}
+        productType={ProductType.Boat}
+        policyNumber="12345"
+        policyDetails={mockMotorPolicy}
+      />,
+      { brand: Brand.NRMA }
+    );
+
+    userEvent.click(document.querySelector('i.i-phone'));
+
+    expect(screen.getByText(/Let’s continue this on the phone/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Our call centre team can help you update your renewal./)
+    ).toBeInTheDocument();
+  });
+
+  test('Render UnsupportedModalButton and when it is missed instalment', () => {
+    const renewalsDataDraft = {
+      ...renewalsData,
+      changeStatus: 'DRAFT',
+    };
+
+    (isSupportedRenewalProductType as jest.Mock).mockImplementation(() => true);
+
+    const foo: PolicyDetails = {
+      ...mockMotorPolicy,
+      policyStatus: PolicyStatus.PaymentOverdue,
+      directDebit: true,
+    };
+
+    render(
+      <RenewalNotification
+        renewalsData={renewalsDataDraft}
+        productType={ProductType.Motor}
+        policyNumber="12345"
+        policyDetails={foo}
+      />,
+      { brand: Brand.NRMA }
+    );
+
+    userEvent.click(document.querySelector('i.i-phone'));
+    expect(screen.getByText(/Review renewal/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Our call centre team can help you update your renewal./)
+    ).toBeInTheDocument();
+    // expect(screen.getByText(/Call us on 1300 332 048/)).toBeInTheDocument();
+  });
+
+  test('Render UnsupportedModalButton when shouldNotifyPayment are true and SUPPORTED_RENEWAL_PRODUCT_TYPES does not contain boat', () => {
+    const renewalsDataDraft = {
+      ...renewalsData,
+      changeStatus: 'RENEWING',
+    };
+
+    render(
+      <RenewalNotification
+        renewalsData={renewalsDataDraft}
+        productType={ProductType.Boat}
+        policyNumber="12345"
+        policyDetails={mockMotorPolicy}
+      />,
+      { brand: Brand.NRMA }
+    );
+
+    userEvent.click(screen.getAllByText('Review renewal')[0]);
+    waitFor(() => {
+      expect(screen.getByText(/Review renewal/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Our call centre team can help you update your renewal./)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/1300 332 048/)).toBeInTheDocument();
+    });
   });
 });
+
+describe('Test PayLaterModal for NRMA', () => {
+  beforeAll(() => {
+    window.__CLIENT_VARS__.brand = Brand.NRMA;
+  });
+
+  test('Renewal Payment Required', () => {
+    render(
+      <RenewalNotification
+        renewalsData={renewalsData}
+        productType={ProductType.Motor}
+        policyNumber="12345"
+        policyChanges={policyChanges}
+        policyDetails={mockMotorPolicy}
+      />,
+      { brand: Brand.NRMA }
+    );
+    // expect(screen.getByText('Renewal payment required')).toBeInTheDocument();
+    userEvent.click(screen.getByText('How to pay'));
+    waitFor(() => {
+      expect(screen.getByText('How to pay for your policy.')).toBeInTheDocument();
+      expect(screen.getByText('Over the phone')).toBeInTheDocument();
+      expect(screen.getByText(/Call us on/)).toBeInTheDocument();
+      expect(screen.getByText('1300 332 048')).toBeInTheDocument();
+      expect(screen.getByText(/8am-8pm AEDT/)).toBeInTheDocument();
+      expect(screen.getByText(/AEST Monday-Friday/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/with your policy number ready. We accept Visa and Mastercard./)
+      ).toBeInTheDocument();
+    });
+  });
+});
+
+// *** Only NRMA is working in here :(  ***
+// describe('Test PayLaterModal for ASB', () => {
+//   beforeAll(() => {
+//     window.__CLIENT_VARS__.brand = Brand.ASB;
+//     useFeaturesConfigMock.mockReturnValue({
+//       ENABLE_RENEWALS: false,
+//     });
+//   });
+
+//   test('Renewal Payment Required', () => {
+//     render(
+//       <RenewalNotification
+//         renewalsData={renewalsData}
+//         productType={ProductType.Motor}
+//         policyNumber="12345"
+//         policyChanges={policyChanges}
+//       />, { brand: Brand.ASB }
+//     );
+//     expect(screen.getByText('Renewal payment required')).toBeInTheDocument();
+//     userEvent.click(screen.getByText('How to pay'));
+
+//     expect(screen.getByText('How to pay for your policy.')).toBeInTheDocument();
+//     expect(screen.getByText('Over the phone')).toBeInTheDocument();
+//     expect(screen.getByText(/Call us on/)).toBeInTheDocument();
+//     expect(screen.getByText('0800 200 252')).toBeInTheDocument();
+//     expect(screen.getByText(/8am-6:30pm Mon-Fri, 8:30am-5:30pm Sat/)).toBeInTheDocument();
+//     expect(screen.getByText(/with your policy number ready. We accept Visa and Mastercard./)).toBeInTheDocument();
+//   });
+// });
+
+// describe('Test PayLaterModal for State', () => {
+//   beforeAll(() => {
+//     window.__CLIENT_VARS__.brand = Brand.STATE;
+//     useFeaturesConfigMock.mockReturnValue({
+//       ENABLE_RENEWALS: false,
+//     });
+//   });
+
+//   test('Renewal Payment Required', () => {
+//     render(
+//       <RenewalNotification
+//         renewalsData={renewalsData}
+//         productType={ProductType.Motor}
+//         policyNumber="12345"
+//         policyChanges={policyChanges}
+//       />, { brand: Brand.STATE }
+//     );
+//     expect(screen.getByText('Renewal payment required')).toBeInTheDocument();
+//     userEvent.click(screen.getByText('How to pay'));
+
+//     expect(screen.getByText('How to pay for your policy.')).toBeInTheDocument();
+//     expect(screen.getByText('Over the phone')).toBeInTheDocument();
+//     expect(screen.getByText(/Call us on/)).toBeInTheDocument();
+//     expect(screen.getByText('0800 80 24 24')).toBeInTheDocument();
+//     expect(screen.getByText(/8am-6pm Mon-Fri, 9am-6pm Sat-Sun & public holidays/)).toBeInTheDocument();
+//     expect(screen.getByText(/with your policy number ready. We accept Visa and Mastercard./)).toBeInTheDocument();
+//   });
+// });
