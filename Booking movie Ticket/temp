@@ -1,52 +1,135 @@
 import { type BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
-import { Alert } from '@iag/chroma-react-ui.components';
-import React from 'react';
-import ShowPhoneNumber from './ShowPhoneNumber';
+import {
+  Button,
+  ButtonGroup,
+  type ButtonProps,
+  Link,
+  Modal,
+} from '@iag/chroma-react-ui.components';
+import type React from 'react';
+import { type PropsWithChildren, useContext, useState } from 'react';
+import { useRecordReferredToAssistedChannel } from '../../hooks/useRecordContactHistory';
+import { ActionName, ElementName, ElementType, Interaction } from '../../models/SiteTracking';
+import { getBrand } from '../../models/brands';
+import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
 
-interface Props {
-  page?: string;
-}
+type Props = {
+  buttonVariant?: ButtonProps['variant'];
+  hideBackButton?: boolean;
+  modalContent: React.ReactNode;
+  modalHeading: string;
+  policyNumber?: string;
+  testid?: string;
+  trackClick?: (action: { name: string; type: string; interaction: string }) => void;
+  trackingName?: string;
+};
 
-const ContactPageInfo: React.FC<BrandDataProps & Props> = ({ t, tt, page }) => {
-  const renderSubtitle = () => {
-    if (page) {
-      // For dashboard.page.subtitle with phone number
-      return (
-        <>
-          {tt('If you have an NRMA Insurance policy that is not listed in online account, give us a call on')}{' '}
-          <ShowPhoneNumber
-            maskedNumber={tt('pages.callUs.maskLinkLabel')}
-            unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
-            tt={tt}
-          />{'. '}
-          {'See our '}<a href={tt('constants.links.websiteAvailability')} className="text-blue-600 underline">
-            website
-          </a>{' for when we\'re available.'}
-        </>
-      );
+const UnsupportedModalButton: React.FC<PropsWithChildren<Props> & BrandDataProps> = ({
+  buttonVariant = 'primary',
+  children,
+  hideBackButton = false,
+  modalHeading,
+  modalContent,
+  policyNumber,
+  testid = '',
+  tt,
+  trackClick,
+  trackingName,
+}) => {
+  const [showModal, setShowModal] = useState(false);
+  const recordReferredToAssistedChannel = useRecordReferredToAssistedChannel(policyNumber);
+  const buttonType = tt('constants.cancelPolicyModal.siteTracking.elementsType.button');
+  const clickInteraction = tt('constants.cancelPolicyModal.siteTracking.interactions.click');
+  const trackingEventContext = useContext(SiteTrackingContext);
+
+  const clickHandler = () => {
+    trackingEventContext.dispatch({
+      interaction: Interaction.SHOW,
+      element: {
+        type: ElementType.MODAL,
+        name: ElementName.CONTINUE_ON_PHONE,
+      },
+      data: {
+        referralCodes: [ActionName.RENEWAL_UNSUPPORTED],
+        referral: true,
+      },
+    });
+
+    recordReferredToAssistedChannel();
+    setShowModal(true);
+    if (trackClick) {
+      trackClick({
+        name: tt('constants.cancelPolicyModal.siteTracking.elementsName.modal'),
+        type: tt('constants.cancelPolicyModal.siteTracking.elementsType.modal'),
+        interaction: tt('constants.cancelPolicyModal.siteTracking.interactions.show'),
+      });
     }
-    // For policyInfo.subtitle (unchanged)
-    return tt('pages.dashboard.policyInfo.subtitle');
   };
 
+  const closeHandler = () => {
+    setShowModal(false);
+    if (trackClick) {
+      trackClick({
+        name: tt('constants.cancelPolicyModal.siteTracking.elementsName.close'),
+        type: buttonType,
+        interaction: clickInteraction,
+      });
+      trackClick({
+        name: tt('constants.cancelPolicyModal.siteTracking.elementsName.modal'),
+        type: tt('constants.cancelPolicyModal.siteTracking.elementsType.modal'),
+        interaction: tt('constants.cancelPolicyModal.siteTracking.interactions.hide'),
+      });
+    }
+  };
   return (
-    <div className="pt-6 sm:py-6 md:py-6">
-      <Alert 
-        data-testid="ContactPageInfo.heading" 
-        id="InfoAlert" 
-        variant="information"
+    <div data-testid={testid}>
+      <Button
+        className="pv-m-0 pv-w-full sm:pv-w-fit md:pv-w-fit"
+        variant={buttonVariant}
+        onClick={clickHandler}
+        data-testid="unsupported-modal-button"
+        data-tracking-name={trackingName}
       >
-        <p className="mb-2">
-          <strong>
-            {page ? tt(`pages.dashboard.${page}.title`) : tt('pages.dashboard.policyInfo.title')}
-          </strong>
-        </p>
-        <p data-testid="ContactPageInfo.text">
-          {renderSubtitle()}
-        </p>
-      </Alert>
+        {children}
+      </Button>
+      <Modal
+        appElement={document.getElementById('root')}
+        brand={getBrand()}
+        className="pv-mfe-modal"
+        describedby=""
+        id="unsupported-modal"
+        isOpen={showModal}
+        labelledby={modalHeading}
+        onClose={closeHandler}
+      >
+        <h3 className="h3" data-testid="unsupported-modal-heading">
+          {modalHeading}
+        </h3>
+        <div data-testid="modal-content">{modalContent}</div>
+        <ButtonGroup className="pv-flex pv-flex-col sm:pv-flex-row pv-w-full pv-gap-y-0 sm:pv-gap-x-4 pv-m-0">
+          {!hideBackButton && (
+            <Button variant="primaryOutline" onClick={closeHandler} className="pv-m-0">
+              {tt('labels.back')}
+            </Button>
+          )}
+          <Link
+            className="pv-m-0"
+            href={tt('constants.phoneNumbers.generalEnquiriesTelLink')}
+            variant="buttonPrimary"
+            onClick={() =>
+              trackClick?.({
+                name: tt('constants.cancelPolicyModal.siteTracking.elementsName.call'),
+                type: buttonType,
+                interaction: clickInteraction,
+              })
+            }
+          >
+            {tt('constants.documentTypes.callUsButton')}
+          </Link>
+        </ButtonGroup>
+      </Modal>
     </div>
   );
 };
 
-export default connectIagBrand()(ContactPageInfo);
+export default connectIagBrand()(UnsupportedModalButton);
