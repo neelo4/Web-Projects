@@ -1,10 +1,6 @@
-{paymentError.code ? (
-  <>
-    <Link onClick={handleBackButtonClick}>
-      <Icon className="i-angle-left pv-text-xl" />
-      {tt('labels.back')}
-    </Link>
-    {tExists('pages.callUs.showNumberText') ? (
+if (paymentError.code) {
+  if (tExists('pages.callUs.showNumberText')) {
+    return (
       <TechnicalError
         id="PreparePaymentError"
         title={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.title`)}
@@ -18,14 +14,17 @@
           />
         }
       />
-    ) : (
-      <TechnicalError
-        id="PreparePaymentError"
-        title={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.title`)}
-        message={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.message`)}
-      />
-    )}
-  </>
-) : (
-  <TechnicalError id="PreparePaymentError" traceId={getTechErrorTraceId()} />
-)}
+    );
+  }
+
+  // Original block remains completely unchanged
+  return (
+    <TechnicalError
+      id="PreparePaymentError"
+      title={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.title`)}
+      message={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.message`)}
+    />
+  );
+}
+
+return <TechnicalError id="PreparePaymentError" traceId={getTechErrorTraceId()} />;
