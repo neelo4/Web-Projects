@@ -4,11 +4,11 @@
       <Icon className="i-angle-left pv-text-xl" />
       {tt('labels.back')}
     </Link>
-    <TechnicalError
-      id="PreparePaymentError"
-      title={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.title`)}
-      message={
-        tExists('pages.callUs.showNumberText') ? (
+    {tExists('pages.callUs.showNumberText') ? (
+      <TechnicalError
+        id="PreparePaymentError"
+        title={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.title`)}
+        message={
           <ShowPhoneNumber
             maskedNumber={tt('pages.callUs.maskLinkLabel')}
             unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
@@ -16,11 +16,15 @@
             prefix={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.technicalMessagePrefix`)}
             suffix={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.technicalMessageSuffix`)}
           />
-        ) : (
-          tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.message`)
-        )
-      }
-    />
+        }
+      />
+    ) : (
+      <TechnicalError
+        id="PreparePaymentError"
+        title={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.title`)}
+        message={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.message`)}
+      />
+    )}
   </>
 ) : (
   <TechnicalError id="PreparePaymentError" traceId={getTechErrorTraceId()} />
