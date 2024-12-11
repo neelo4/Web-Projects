@@ -1,89 +1,15 @@
-import React, { useState } from 'react';
-import { type BrandDataProps } from '@iag-common/iag-brand-context';
-import { useBrandUtils } from '../../hooks/brand/useBrandUtils';
-import { Link } from '@iag/chroma-react-ui.components';
-
-type ShowPhoneNumberProps = {
-  maskedNumber: string;
-  unmaskedNumber: string;
-  variant?: 'buttonPrimary' | string;
-  prefix?: string;  // Now will accept the translation key directly
-  suffix?: string;  // Now will accept the translation key directly
-  pageName?: string;
-};
-
-const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
-  tt,
-  tExists,
-  maskedNumber,
-  unmaskedNumber,
-  variant,
-  prefix,
-  suffix,
-  pageName,
-}) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const [showLink, setShowLink] = useState(true);
-  const { getFullBrandStringNameByUserType } = useBrandUtils({ tExists });
-
-  // Rest of your existing state and handlers...
-
-  const getPrefixText = () => {
-    if (!prefix) return '';
+const getPrefixText = () => {
+  if (!prefix) return '';
+  if (typeof prefix === 'string') {
     return tt(getFullBrandStringNameByUserType(prefix));
-  };
-
-  const getSuffixText = () => {
-    if (!suffix) return '';
-    return tt(getFullBrandStringNameByUserType(suffix));
-  };
-
-  if (isMobileApp) {
-    return variant === 'buttonPrimary' ? (
-      <Button variant="primary" onClick={handleNumberClick} className="pv-m-0">
-        <p>{prefix && <>{getPrefixText()} </>}</p>
-        {unmaskedNumber}
-      </Button>
-    ) : (
-      <NavigationLink
-        to={tt('pages.callUs.link')}
-        onClick={handleNumberClick}
-        newWindow={true}
-        isInternalLink={true}
-        className="text-blue-600 underline"
-      >
-        {unmaskedNumber}
-      </NavigationLink>
-    );
   }
-
-  return (
-    <span className="flex flex-wrap gap-1 self-center">
-      {prefix && <span>{getPrefixText()} </span>}
-      {isVisible ? (
-        <NavigationLink
-          to={tt('pages.callUs.link')}
-          onClick={handleNumberClick}
-          newWindow={true}
-          isInternalLink={true}
-          className="text-blue-600 underline self-center"
-        >
-          {unmaskedNumber}
-        </NavigationLink>
-      ) : (
-        <span className="text-blue-600 self-center">{maskedNumber}</span>
-      )}
-      {showLink && (
-        <Link
-          onClick={handleShowNumber}
-          className="text-blue-600 hover:text-blue-800 text-sm focus:outline-none no-underline self-center"
-        >
-          {tt(`pages.callUs.showNumberText`)}
-        </Link>
-      )}
-      {suffix && <span>{getSuffixText()} </span>}
-    </span>
-  );
+  return prefix;
 };
 
-export default ShowPhoneNumber;
+const getSuffixText = () => {
+  if (!suffix) return '';
+  if (typeof suffix === 'string') {
+    return tt(getFullBrandStringNameByUserType(suffix));
+  }
+  return suffix;
+};
