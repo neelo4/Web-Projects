@@ -1,37 +1,89 @@
-import React from 'react';
-import { Alert } from '@iag/chroma-react-ui.components';
-import { type BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
-import ShowPhoneNumber from '../ShowPhoneNumber';
+import React, { useState } from 'react';
+import { type BrandDataProps } from '@iag-common/iag-brand-context';
+import { useBrandUtils } from '../../hooks/brand/useBrandUtils';
+import { Link } from '@iag/chroma-react-ui.components';
 
-const EditPaymentPlanHeaderAlert: React.FC<Props & BrandDataProps> = ({ tt, t, tExists }) => {
-  if (tExists('pages.callUs.showNumberText')) {
-    return (
-      <Alert id="InfoAlert" data-testid="InfoAlert" variant="information">
-        <p>
-          <strong>{tt('constants.editPaymentInfo.title')}</strong>
-        </p>
-        <div>
-          <ShowPhoneNumber
-            maskedNumber={tt('pages.callUs.maskLinkLabel')}
-            unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
-            tt={tt}
-            prefix={tt('constants.editPaymentInfo.descriptionPrefix')}
-            suffix={tt('constants.editPaymentInfo.descriptionSuffix')}
-          />
-        </div>
-      </Alert>
+type ShowPhoneNumberProps = {
+  maskedNumber: string;
+  unmaskedNumber: string;
+  variant?: 'buttonPrimary' | string;
+  prefix?: string;  // Now will accept the translation key directly
+  suffix?: string;  // Now will accept the translation key directly
+  pageName?: string;
+};
+
+const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
+  tt,
+  tExists,
+  maskedNumber,
+  unmaskedNumber,
+  variant,
+  prefix,
+  suffix,
+  pageName,
+}) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [showLink, setShowLink] = useState(true);
+  const { getFullBrandStringNameByUserType } = useBrandUtils({ tExists });
+
+  // Rest of your existing state and handlers...
+
+  const getPrefixText = () => {
+    if (!prefix) return '';
+    return tt(getFullBrandStringNameByUserType(prefix));
+  };
+
+  const getSuffixText = () => {
+    if (!suffix) return '';
+    return tt(getFullBrandStringNameByUserType(suffix));
+  };
+
+  if (isMobileApp) {
+    return variant === 'buttonPrimary' ? (
+      <Button variant="primary" onClick={handleNumberClick} className="pv-m-0">
+        <p>{prefix && <>{getPrefixText()} </>}</p>
+        {unmaskedNumber}
+      </Button>
+    ) : (
+      <NavigationLink
+        to={tt('pages.callUs.link')}
+        onClick={handleNumberClick}
+        newWindow={true}
+        isInternalLink={true}
+        className="text-blue-600 underline"
+      >
+        {unmaskedNumber}
+      </NavigationLink>
     );
   }
 
-  // Original code remains unchanged
   return (
-    <Alert id="InfoAlert" data-testid="InfoAlert" variant="information">
-      <p>
-        <strong>{tt('constants.editPaymentInfo.title')}</strong>
-      </p>
-      <p>{tt(getFullBrandStringNameByUserType('constants.editPaymentInfo.description'))}</p>
-    </Alert>
+    <span className="flex flex-wrap gap-1 self-center">
+      {prefix && <span>{getPrefixText()} </span>}
+      {isVisible ? (
+        <NavigationLink
+          to={tt('pages.callUs.link')}
+          onClick={handleNumberClick}
+          newWindow={true}
+          isInternalLink={true}
+          className="text-blue-600 underline self-center"
+        >
+          {unmaskedNumber}
+        </NavigationLink>
+      ) : (
+        <span className="text-blue-600 self-center">{maskedNumber}</span>
+      )}
+      {showLink && (
+        <Link
+          onClick={handleShowNumber}
+          className="text-blue-600 hover:text-blue-800 text-sm focus:outline-none no-underline self-center"
+        >
+          {tt(`pages.callUs.showNumberText`)}
+        </Link>
+      )}
+      {suffix && <span>{getSuffixText()} </span>}
+    </span>
   );
 };
 
-export default connectIagBrand()(EditPaymentPlanHeaderAlert);
+export default ShowPhoneNumber;
