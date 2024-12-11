@@ -1,59 +1,37 @@
-// ... all imports remain same, just add ShowPhoneNumber import
-import ShowPhoneNumber from '../shared/ShowPhoneNumber';
+import React from 'react';
+import { Alert } from '@iag/chroma-react-ui.components';
+import { type BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
+import ShowPhoneNumber from '../ShowPhoneNumber';
 
-const PreparePayment: React.FC<BrandDataProps & PreparePaymentProps> = ({
-  t,
-  tt,
-  tExists,  // add tExists to props
-  postCode,
-  policyNumber,
-  transactionNumber,
-  versionNumber,
-  isRenewal,
-}) => {
-  // ... all existing code remains exactly the same until the return statement
+const EditPaymentPlanHeaderAlert: React.FC<Props & BrandDataProps> = ({ tt, t, tExists }) => {
+  if (tExists('pages.callUs.showNumberText')) {
+    return (
+      <Alert id="InfoAlert" data-testid="InfoAlert" variant="information">
+        <p>
+          <strong>{tt('constants.editPaymentInfo.title')}</strong>
+        </p>
+        <div>
+          <ShowPhoneNumber
+            maskedNumber={tt('pages.callUs.maskLinkLabel')}
+            unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
+            tt={tt}
+            prefix={tt('constants.editPaymentInfo.descriptionPrefix')}
+            suffix={tt('constants.editPaymentInfo.descriptionSuffix')}
+          />
+        </div>
+      </Alert>
+    );
+  }
 
-  return paymentError ? (
-    <>
-      <Link onClick={handleBackButtonClick}>
-        <Icon className="i-angle-left pv-text-xl" />
-        {tt('labels.back')}
-      </Link>
-      {paymentError.code ? (
-        tExists('pages.callUs.showNumberText') ? (
-          <TechnicalError
-            id="PreparePaymentError"
-            title={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.title`)}
-            message={
-              <ShowPhoneNumber
-                maskedNumber={tt('pages.callUs.maskLinkLabel')}
-                unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
-                tt={tt}
-                prefix={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.technicalMessagePrefix`)}
-                suffix={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.technicalMessageSuffix`)}
-              />
-            }
-          />
-        ) : (
-          <TechnicalError
-            id="PreparePaymentError"
-            title={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.title`)}
-            message={t(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.message`)}
-          />
-        )
-      ) : (
-        <TechnicalError id="PreparePaymentError" traceId={getTechErrorTraceId()} />
-      )}
-    </>
-  ) : paymentData ? (
-    useUnifiedPaymentMfe ? (
-      <PaymentMfe {...(paymentData as OneOffPaymentProps)} />
-    ) : (
-      <OneOffPaymentMfe {...(paymentData as OneOffPaymentMfeProps)} />
-    )
-  ) : (
-    <StandardLoader />
+  // Original code remains unchanged
+  return (
+    <Alert id="InfoAlert" data-testid="InfoAlert" variant="information">
+      <p>
+        <strong>{tt('constants.editPaymentInfo.title')}</strong>
+      </p>
+      <p>{tt(getFullBrandStringNameByUserType('constants.editPaymentInfo.description'))}</p>
+    </Alert>
   );
 };
 
-export default connectIagBrand()(PreparePayment);
+export default connectIagBrand()(EditPaymentPlanHeaderAlert);
