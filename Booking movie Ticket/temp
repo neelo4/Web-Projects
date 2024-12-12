@@ -1,25 +1,29 @@
-<BasicModal
-  isOpen={isOpen}
-  onClose={onClose}
-  title={tt('pages.policyDetails.paymentExtension.requestDeniedHeader')}
-  showBackBtn={true}
->
-  <h3 className="h3">
-    {tt('pages.policyDetails.paymentExtension.requestDeniedHeader')}
-  </h3>
-  <div id="dialogDescription">
-    {tExists('pages.callUs.showNumberText') ? (
-      tt('pages.policyDetails.paymentExtension.requestDeniedDescription')
-    ) : (
-      tt('pages.policyDetails.paymentExtension.requestDeniedDescription')
-    )}
-    {tExists('pages.callUs.showNumberText') && (
-      <ShowPhoneNumber
-        maskedNumber={tt('pages.callUs.maskLinkLabel')}
-        unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
-        tt={tt}
-        prefix={tt('pages.policyDetails.paymentExtension.requestDeniedDescriptionPrefix')}
-      />
-    )}
-  </div>
-</BasicModal>
+{isPolicyEntitlementView && canAmend && !futureTermEffectiveDate && (
+  <ModalButton
+    modalHeading={tt('constants.unavailableAssetChangeModal.title')}
+    modalContent={
+      tExists('pages.callUs.showNumberText') ? (
+        <ShowPhoneNumber
+          maskedNumber={tt('pages.callUs.maskLinkLabel')}
+          unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
+          tt={tt}
+          prefix={tt('constants.unavailableAssetChangeModal.descriptionPrefix', {
+            policyNumber,
+          })}
+          suffix={tt('constants.unavailableAssetChangeModal.descriptionSuffix', {
+            policyNumber,
+          })}
+        />
+      ) : (
+        t('constants.unavailableAssetChangeModal.description', {
+          policyNumber,
+        })
+      )
+    }
+    policyNumber={policyNumber}
+    name={tt(`editButton.vehicleUsage.${assetType}`)}
+  >
+    <Icon className="i-phone pv-mr-4" />
+    {tt(`editButton.vehicleUsage.${assetType}`)}
+  </ModalButton>
+)}
