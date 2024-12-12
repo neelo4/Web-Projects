@@ -1,15 +1,25 @@
-const getPrefixText = () => {
-  if (!prefix) return '';
-  if (typeof prefix === 'string') {
-    return tt(getFullBrandStringNameByUserType(prefix));
-  }
-  return prefix;
-};
-
-const getSuffixText = () => {
-  if (!suffix) return '';
-  if (typeof suffix === 'string') {
-    return tt(getFullBrandStringNameByUserType(suffix));
-  }
-  return suffix;
-};
+<BasicModal
+  isOpen={isOpen}
+  onClose={onClose}
+  title={tt('pages.policyDetails.paymentExtension.requestDeniedHeader')}
+  showBackBtn={true}
+>
+  <h3 className="h3">
+    {tt('pages.policyDetails.paymentExtension.requestDeniedHeader')}
+  </h3>
+  <div id="dialogDescription">
+    {tExists('pages.callUs.showNumberText') ? (
+      tt('pages.policyDetails.paymentExtension.requestDeniedDescription')
+    ) : (
+      tt('pages.policyDetails.paymentExtension.requestDeniedDescription')
+    )}
+    {tExists('pages.callUs.showNumberText') && (
+      <ShowPhoneNumber
+        maskedNumber={tt('pages.callUs.maskLinkLabel')}
+        unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
+        tt={tt}
+        prefix={tt('pages.policyDetails.paymentExtension.requestDeniedDescriptionPrefix')}
+      />
+    )}
+  </div>
+</BasicModal>
