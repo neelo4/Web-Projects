@@ -1,29 +1,40 @@
-{isPolicyEntitlementView && canAmend && !futureTermEffectiveDate && (
-  <ModalButton
-    modalHeading={tt('constants.unavailableAssetChangeModal.title')}
-    modalContent={
-      tExists('pages.callUs.showNumberText') ? (
-        <ShowPhoneNumber
-          maskedNumber={tt('pages.callUs.maskLinkLabel')}
-          unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
-          tt={tt}
-          prefix={tt('constants.unavailableAssetChangeModal.descriptionPrefix', {
-            policyNumber,
-          })}
-          suffix={tt('constants.unavailableAssetChangeModal.descriptionSuffix', {
-            policyNumber,
-          })}
-        />
-      ) : (
-        t('constants.unavailableAssetChangeModal.description', {
-          policyNumber,
-        })
-      )
-    }
-    policyNumber={policyNumber}
-    name={tt(`editButton.vehicleUsage.${assetType}`)}
-  >
-    <Icon className="i-phone pv-mr-4" />
-    {tt(`editButton.vehicleUsage.${assetType}`)}
-  </ModalButton>
-)}
+const CannotEditPaymentPlanModal: React.FC<Props & BrandDataProps> = ({
+  isOpen,
+  onClose,
+  t,
+  tt,
+  tExists
+}) => {
+  const { policyNumber } = useContext(policyDetailsContext);
+
+  return (
+    <BasicModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={tt('pages.paymentPlan.editDenied.heading')}
+      showBackBtn={true}
+    >
+      <div data-testid="modal-content">
+        <p data-testid="message1">
+          {tt('pages.paymentPlan.editDenied.message1')}
+        </p>
+        <p data-testid="message2">
+          {tExists('pages.callUs.showNumberText') ? (
+            <ShowPhoneNumber
+              maskedNumber={tt('pages.callUs.maskLinkLabel')}
+              unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
+              tt={tt}
+              prefix={tt('pages.paymentPlan.editDenied.messagePrefix')}
+              suffix={tt('pages.paymentPlan.editDenied.messageSuffix')}
+            />
+          ) : (
+            tt('pages.paymentPlan.editDenied.message2')
+          )}
+        </p>
+        <p data-testid="message3">
+          {tt('pages.paymentPlan.editDenied.message3', { policyNumber })}
+        </p>
+      </div>
+    </BasicModal>
+  );
+};
