@@ -1,100 +1,79 @@
-describe('ShowPhoneNumber component within BusinessUsageSection', () => {
-  beforeEach(() => {
-    useCreatePolicyChangeMock.mockReturnValue({
-      createPolicyChange: createPolicyChangeMock,
-      withdrawCreatePolicyChange: withdrawCreatePolicyChangeMock,
-      success: false,
-      processing: false,
-      error: undefined,
-    });
-  });
+import { type BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
+import { Icon } from '@iag/chroma-react-ui.icon';
+import { NavigationButton } from '@iag/chroma-react-ui.navigation-button';
+import { ModalRestrictedEntry } from '@iag/chroma-react-ui.modal';
+import ShowPhoneNumber from '../ShowPhoneNumber';
 
-  test('displays masked number initially with correct number of show number links', () => {
-    render(
-      <policyDetailsContext.Provider value={mockHomePolicy}>
-        <BusinessUsageSection />
-      </policyDetailsContext.Provider>
+const RestrictedNavigationLink: React.FC<Props & BrandDataProps> = ({
+  tt,
+  t,
+  tExists,
+  editButtonLabel,
+  editButtonTrackingName,
+  modalTrackingName,
+  assetNumber,
+  assetPath,
+  amendmentType,
+  policyNumber,
+  productType,
+  referralCodes,
+  mtaEnalbed
+}) => {
+  if (mtaEnalbed) {
+    // biome-ignore lint: existing behavior
+    const publicPath = useFeatureConfig(FeatureName.PUBLIC_PATH);
+    return (
+      <NavigationButton
+        dataTestid="RestrictedNavigation"
+        dataTrackingName={editButtonTrackingName}
+        to={toExternalUrlWithParams(
+          `${publicPath}policychange/policies/${productType}/${policyNumber}${
+            assetNumber
+              ? `/asset/${assetNumber}/${assetPath}/amend/${amendmentType}`
+              : `/${assetPath}/amend/${amendmentType}`
+          }`
+        )}
+        variant="primaryOutline"
+      >
+        <div data-testid="EditButton">{editButtonLabel}</div>
+      </NavigationButton>
     );
+  }
 
-    expect(screen.getAllByText('Show number')).toHaveLength(2);
-    expect(screen.getAllByText('1300 XXX XXX')).toHaveLength(2);
-  });
+  const modalHeading = tt('constants.unavailableAssetChangeModal.title');
+  const modalContent = tExists('pages.callUs.showNumberText') 
+    ? {
+        prefix: tt('constants.unavailableAssetChangeModal.prefix'),
+        number: tt('pages.callUs.maskLinkLabel'),
+        unmaskedNumber: tt('constants.phoneNumbers.generalEnquiries'),
+        suffix: tt('constants.unavailableAssetChangeModal.suffix')
+      }
+    : t('constants.unavailableAssetChangeModal.description', { policyNumber });
 
-  test('reveals correct number of unmasked numbers when show number is clicked', async () => {
-    render(
-      <policyDetailsContext.Provider value={mockHomePolicy}>
-        <BusinessUsageSection />
-      </policyDetailsContext.Provider>
-    );
+  return (
+    <ModalRestrictedEntry
+      modalHeading={modalHeading}
+      modalContent={
+        tExists('pages.callUs.showNumberText') ? (
+          <ShowPhoneNumber
+            maskedNumber={modalContent.number}
+            unmaskedNumber={modalContent.unmaskedNumber}
+            prefix={modalContent.prefix}
+            suffix={modalContent.suffix}
+            tt={tt}
+          />
+        ) : (
+          modalContent
+        )
+      }
+      modalTrackingName={modalTrackingName}
+      buttonName={editButtonLabel.toLowerCase().replaceAll(' ', '-')}
+      referrerCodes={referralCodes}
+    >
+      <Icon className="i-phone pv-mr-4" />
+      <div data-testid="EditButton">{editButtonLabel}</div>
+    </ModalRestrictedEntry>
+  );
+};
 
-    const showNumberButtons = screen.getAllByText('Show number');
-    await userEvent.click(showNumberButtons[0]);
-    
-    const callLinks = screen.getAllByText('1300 332 048');
-    expect(callLinks).toHaveLength(1);
-    expect(callLinks[0]).toHaveAttribute('href', 'tel:1300332048');
-  });
-
-  test('correctly updates number of visible elements after revealing', async () => {
-    render(
-      <policyDetailsContext.Provider value={mockHomePolicy}>
-        <BusinessUsageSection />
-      </policyDetailsContext.Provider>
-    );
-
-    // Initially should have 2 show number buttons
-    expect(screen.getAllByText('Show number')).toHaveLength(2);
-
-    // Click first show number button
-    await userEvent.click(screen.getAllByText('Show number')[0]);
-
-    // Should now have 1 show number button and 1 revealed number
-    expect(screen.getAllByText('Show number')).toHaveLength(1);
-    expect(screen.getAllByText('1300 332 048')).toHaveLength(1);
-  });
-
-  test('shows correct number of tracking events when revealing numbers', async () => {
-    const trackingDispatchMock = jest.fn();
-    render(
-      <SiteTrackingContext.Provider value={{ dispatch: trackingDispatchMock }}>
-        <policyDetailsContext.Provider value={mockHomePolicy}>
-          <BusinessUsageSection />
-        </policyDetailsContext.Provider>
-      </SiteTrackingContext.Provider>
-    );
-
-    const showNumberButtons = screen.getAllByText('Show number');
-    expect(showNumberButtons).toHaveLength(2);
-
-    // Click both show number buttons
-    await userEvent.click(showNumberButtons[0]);
-    await userEvent.click(showNumberButtons[1]);
-
-    // Should have two tracking events
-    expect(trackingDispatchMock).toHaveBeenCalledTimes(2);
-  });
-
-  test('displays correct number of elements in mobile app view', () => {
-    // Mock the useBrowserDetect hook to return isMobileApp as true
-    jest.mock('../../hooks/useBrowserDetect', () => ({
-      __esModule: true,
-      default: () => ({ isMobileApp: true })
-    }));
-
-    render(
-      <policyDetailsContext.Provider value={mockHomePolicy}>
-        <BusinessUsageSection />
-      </policyDetailsContext.Provider>
-    );
-
-    // Should have no show number buttons in mobile app
-    expect(screen.queryAllByText('Show number')).toHaveLength(0);
-    // Should have unmasked numbers directly
-    expect(screen.getAllByText('1300 332 048')).toHaveLength(2);
-    
-    const callLinks = screen.getAllByText('1300 332 048');
-    callLinks.forEach(link => {
-      expect(link).toHaveAttribute('href', 'tel:1300332048');
-    });
-  });
-});
+export default connectIagBrand()(RestrictedNavigationLink);
