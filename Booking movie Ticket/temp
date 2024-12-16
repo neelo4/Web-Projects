@@ -1,314 +1,4 @@
-import { screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { addMonths } from 'date-fns';
-import { render } from '../../../../shared/test-utils/renderWithProviders';
-import { AppContext } from '../../../AppContext';
-import { mockHomePolicy, mockLandlordPolicy, mockMotorPolicy } from '../../../__mocks__/mockPolicy';
-import useCreatePolicyChange from '../../../hooks/api/useCreatePolicyChange';
-import { PolicyStatus } from '../../../models/PolicyStatus';
-import { policyDetailsContext } from '../../../pages/PolicyDetails';
-import BusinessUsageSection from './BusinessUsageSection';
-
-jest.mock('../../../iagBrandStore');
-jest.mock('../../../hooks/api/useCreatePolicyChange');
-
-const useCreatePolicyChangeMock = useCreatePolicyChange as jest.MockedFunction<
-  typeof useCreatePolicyChange
->;
-const createPolicyChangeMock = jest.fn();
-const withdrawCreatePolicyChangeMock = jest.fn();
-
-const mockRawFutureDate = addMonths(new Date(), 2);
-const localAustralianDate = mockRawFutureDate.toLocaleString('en-US', {
-  timeZone: 'Australia/Sydney',
-});
-
-describe('with registered for GST and ACTIVE usage', () => {
-  beforeEach(() => {
-    useCreatePolicyChangeMock.mockReturnValue({
-      createPolicyChange: createPolicyChangeMock,
-      withdrawCreatePolicyChange: withdrawCreatePolicyChangeMock,
-      success: false,
-      processing: false,
-      error: undefined,
-    });
-    render(
-      <policyDetailsContext.Provider value={mockMotorPolicy}>
-        <BusinessUsageSection />
-      </policyDetailsContext.Provider>
-    );
-  });
-
-  test('displays correct static UI', () => {
-    expect(screen.getByText(`GST & Input Tax Credit`)).toBeInTheDocument();
-  });
-
-  test('displays correct labels', () => {
-    expect(screen.getByText(`Are any owners registered for GST?`)).toBeInTheDocument();
-    expect(screen.getByText(`Input Tax Credit claimed on this policy`)).toBeInTheDocument();
-  });
-
-  test('displays correct values', () => {
-    expect(screen.getByText(`Yes`)).toBeInTheDocument();
-    expect(screen.getByText(`11%`)).toBeInTheDocument();
-  });
-
-  test('displays itc modal', () => {
-    userEvent.click(screen.getByRole('button', { name: 'Input tax credit explained' }));
-    expect(screen.getByText(`Input Tax Credit (ITC)`)).toBeInTheDocument();
-    expect(screen.getByText(`Back`)).toBeInTheDocument();
-  });
-
-  test('hides itc modal', () => {
-    userEvent.click(screen.getByRole('button', { name: 'Input tax credit explained' }));
-    userEvent.click(screen.getByLabelText('Close this dialog window'));
-    expect(screen.queryByText(`Input Tax Credit (ITC)`)).toBeNull();
-  });
-
-  test('withdraw and create policy change api called', () => {
-    userEvent.click(screen.getByRole('button', { name: 'Edit GST & Input Tax Credit' }));
-    expect(withdrawCreatePolicyChangeMock).toHaveBeenCalled();
-  });
-});
-
-describe('with registered for GST and policy changes on ONLINE channel', () => {
-  beforeEach(() => {
-    useCreatePolicyChangeMock.mockReturnValue({
-      createPolicyChange: createPolicyChangeMock,
-      withdrawCreatePolicyChange: withdrawCreatePolicyChangeMock,
-      success: false,
-      processing: false,
-      error: undefined,
-    });
-  });
-  test('create policy change api called for DRAFT change', () => {
-    render(
-      <policyDetailsContext.Provider
-        value={{
-          ...mockMotorPolicy,
-          policyChanges: [],
-        }}
-      >
-        <BusinessUsageSection />
-      </policyDetailsContext.Provider>
-    );
-    userEvent.click(screen.getByRole('button', { name: 'Edit GST & Input Tax Credit' }));
-    expect(createPolicyChangeMock).toHaveBeenCalled();
-  });
-
-  test('withdraw and create policy change api called for QUOTED change', () => {
-    render(
-      <policyDetailsContext.Provider
-        value={{
-          ...mockMotorPolicy,
-          policyChanges: [
-            {
-              changeStatus: 'QUOTED',
-              changeType: 'POLICY_CHANGE',
-              number: '0000013824',
-              originatingChannel: 'ONLINE',
-              termEffectiveDate: '2021-03-11T13:00:00.000Z',
-              creationDate: '2019-09-31T15:47:55.123+10:00',
-              expiryDate: '2021-02-31T15:47:55.123+10:00',
-              versionNumber: 'V2',
-            },
-          ],
-        }}
-      >
-        <BusinessUsageSection />
-      </policyDetailsContext.Provider>
-    );
-    userEvent.click(screen.getByRole('button', { name: 'Edit GST & Input Tax Credit' }));
-    expect(withdrawCreatePolicyChangeMock).toHaveBeenCalled();
-  });
-
-  test('handle when no draft or quoted change is present', () => {
-    render(
-      <policyDetailsContext.Provider
-        value={{
-          ...mockMotorPolicy,
-          policyChanges: [
-            {
-              changeStatus: 'WITHDRAWN',
-              changeType: 'POLICY_CHANGE',
-              number: '0000013824',
-              originatingChannel: 'ONLINE',
-              termEffectiveDate: '2021-03-11T13:00:00.000Z',
-              creationDate: '2019-09-31T15:47:55.123+10:00',
-              expiryDate: '2021-02-31T15:47:55.123+10:00',
-              versionNumber: 'V2',
-            },
-          ],
-        }}
-      >
-        <BusinessUsageSection />
-      </policyDetailsContext.Provider>
-    );
-    userEvent.click(screen.getByRole('button', { name: 'Edit GST & Input Tax Credit' }));
-    expect(createPolicyChangeMock).toHaveBeenCalled();
-  });
-});
-
-describe('with registered for GST but cannot edit GST details', () => {
-  beforeEach(() => {
-    useCreatePolicyChangeMock.mockReturnValue({
-      createPolicyChange: createPolicyChangeMock,
-      withdrawCreatePolicyChange: jest.fn(),
-      success: false,
-      processing: false,
-      error: undefined,
-    });
-  });
-
-  test('displays unavailable modal with status as DRAFT and CENTER channel', () => {
-    render(
-      <policyDetailsContext.Provider
-        value={{
-          ...mockMotorPolicy,
-          policyChanges: [
-            {
-              changeStatus: 'DRAFT',
-              changeType: 'POLICY_CHANGE',
-              number: '0000013824',
-              originatingChannel: 'CONTACT_CENTRE',
-              termEffectiveDate: '2022-03-11T13:00:00.000Z',
-              creationDate: '2019-09-31T15:47:55.123+10:00',
-              expiryDate: '2021-02-31T15:47:55.123+10:00',
-              versionNumber: 'V2',
-            },
-          ],
-        }}
-      >
-        <BusinessUsageSection />
-      </policyDetailsContext.Provider>
-    );
-    userEvent.click(screen.getByRole('button', { name: 'Edit GST & Input Tax Credit' }));
-    expect(screen.getByText(`Let’s continue this on the phone`)).toBeInTheDocument();
-  });
-
-  test('policy details on click of back btn on assisted modal', () => {
-    render(
-      <policyDetailsContext.Provider
-        value={{
-          ...mockMotorPolicy,
-          policyChanges: [
-            {
-              changeStatus: 'DRAFT',
-              changeType: 'POLICY_CHANGE',
-              number: '0000013824',
-              originatingChannel: 'CONTACT_CENTRE',
-              termEffectiveDate: '2022-03-11T13:00:00.000Z',
-              creationDate: '2019-09-31T15:47:55.123+10:00',
-              expiryDate: '2021-02-31T15:47:55.123+10:00',
-              versionNumber: 'V2',
-            },
-          ],
-        }}
-      >
-        <BusinessUsageSection />
-      </policyDetailsContext.Provider>
-    );
-    userEvent.click(screen.getByRole('button', { name: 'Edit GST & Input Tax Credit' }));
-    userEvent.click(screen.getByLabelText('Close this dialog window'));
-    expect(screen.queryByText(`Let’s continue this on the phone`)).toBeNull();
-  });
-
-  test('displays unavailable modal with status as QUOTED and CENTER channel', () => {
-    render(
-      <policyDetailsContext.Provider
-        value={{
-          ...mockMotorPolicy,
-          policyChanges: [
-            {
-              changeStatus: 'QUOTED',
-              changeType: 'POLICY_CHANGE',
-              number: '0000013824',
-              originatingChannel: 'CONTACT_CENTRE',
-              termEffectiveDate: '2022-03-11T13:00:00.000Z',
-              creationDate: '2019-09-31T15:47:55.123+10:00',
-              expiryDate: '2021-02-31T15:47:55.123+10:00',
-              versionNumber: 'V2',
-            },
-          ],
-        }}
-      >
-        <BusinessUsageSection />
-      </policyDetailsContext.Provider>
-    );
-    userEvent.click(screen.getByRole('button', { name: 'Edit GST & Input Tax Credit' }));
-    expect(screen.getByText(`Let’s continue this on the phone`)).toBeInTheDocument();
-  });
-
-  test('hide edit button removed', () => {
-    render(
-      <policyDetailsContext.Provider
-        value={{
-          ...mockMotorPolicy,
-          policyStatus: PolicyStatus.Inactive,
-        }}
-      >
-        <BusinessUsageSection />
-      </policyDetailsContext.Provider>
-    );
-    expect(screen.queryByText(`Edit GST & Input Tax Credit`)).toBeNull();
-  });
-});
-
-describe('with NOT registered for GST', () => {
-  beforeEach(() => {
-    useCreatePolicyChangeMock.mockReturnValue({
-      createPolicyChange: jest.fn(),
-      withdrawCreatePolicyChange: jest.fn(),
-      success: false,
-      processing: false,
-      error: undefined,
-    });
-    render(
-      <policyDetailsContext.Provider
-        value={{
-          ...mockMotorPolicy,
-          partyHistoryDisclosures: {
-            registeredForGst: false,
-          },
-        }}
-      >
-        <BusinessUsageSection />
-      </policyDetailsContext.Provider>
-    );
-  });
-
-  test('displays N/A in Tax Credit claim field', () => {
-    expect(screen.getByText(`No`)).toBeInTheDocument();
-    expect(screen.getByText(`N/A`)).toBeInTheDocument();
-  });
-});
-
-describe('with success response from create/withdraw api', () => {
-  test('redirects to edit business usage', () => {
-    const setAppState = jest.fn();
-    useCreatePolicyChangeMock.mockReturnValue({
-      createPolicyChange: jest.fn(),
-      withdrawCreatePolicyChange: jest.fn(),
-      success: true,
-      processing: false,
-      error: undefined,
-    });
-    const appState = {
-      canViewBusinessUsage: false,
-    };
-    render(
-      <AppContext.Provider value={{ appState, setAppState }}>
-        <policyDetailsContext.Provider value={mockMotorPolicy}>
-          <BusinessUsageSection />
-        </policyDetailsContext.Provider>
-      </AppContext.Provider>
-    );
-    expect(setAppState).toBeCalled();
-    expect(window.location.pathname).toBe(`/policies/motor/1234/businessUsage`);
-  });
-});
-
-describe('with home/landlord policies it displays text instead of edit button', () => {
+describe('ShowPhoneNumber component within BusinessUsageSection', () => {
   beforeEach(() => {
     useCreatePolicyChangeMock.mockReturnValue({
       createPolicyChange: createPolicyChangeMock,
@@ -319,109 +9,92 @@ describe('with home/landlord policies it displays text instead of edit button', 
     });
   });
 
-  test('with landlord policy', () => {
-    render(
-      <policyDetailsContext.Provider
-        value={{
-          ...mockLandlordPolicy,
-          partyHistoryDisclosures: {
-            registeredForGst: false,
-          },
-        }}
-      >
-        <BusinessUsageSection />
-      </policyDetailsContext.Provider>
-    );
-
-    expect(screen.queryByText(/call us on/)).toBeInTheDocument();
-  });
-
-  test('with home policy', () => {
+  test('displays masked number initially with correct number of show number links', () => {
     render(
       <policyDetailsContext.Provider value={mockHomePolicy}>
         <BusinessUsageSection />
       </policyDetailsContext.Provider>
     );
 
-    expect(screen.queryByText(/call us on/)).toBeInTheDocument();
+    expect(screen.getAllByText('Show number')).toHaveLength(2);
+    expect(screen.getAllByText('1300 XXX XXX')).toHaveLength(2);
   });
-});
 
-const mockMotorPolicyChange = {
-  ...mockMotorPolicy,
-  futureTermEffectiveDate: localAustralianDate,
-};
-
-describe('with registered for GST and ACTIVE usage change', () => {
-  beforeEach(() => {
+  test('reveals correct number of unmasked numbers when show number is clicked', async () => {
     render(
-      <policyDetailsContext.Provider value={mockMotorPolicyChange}>
+      <policyDetailsContext.Provider value={mockHomePolicy}>
         <BusinessUsageSection />
       </policyDetailsContext.Provider>
     );
+
+    const showNumberButtons = screen.getAllByText('Show number');
+    await userEvent.click(showNumberButtons[0]);
+    
+    const callLinks = screen.getAllByText('1300 332 048');
+    expect(callLinks).toHaveLength(1);
+    expect(callLinks[0]).toHaveAttribute('href', 'tel:1300332048');
   });
 
-  test('displays correct static UI', () => {
-    expect(screen.getByText(`GST & Input Tax Credit`)).toBeInTheDocument();
-  });
-
-  test('displays correct labels', () => {
-    expect(screen.getByText(`Are any owners registered for GST?`)).toBeInTheDocument();
-    expect(screen.getByText(`Input Tax Credit claimed on this policy`)).toBeInTheDocument();
-  });
-
-  test('displays correct values', () => {
-    expect(screen.getByText(`Yes`)).toBeInTheDocument();
-    expect(screen.getByText(`11%`)).toBeInTheDocument();
-  });
-
-  test('displays itc modal', () => {
-    userEvent.click(screen.getByRole('button', { name: 'Input tax credit explained' }));
-    expect(screen.getByText(`Input Tax Credit (ITC)`)).toBeInTheDocument();
-    expect(screen.getByText(`Back`)).toBeInTheDocument();
-  });
-
-  test('hides itc modal', () => {
-    userEvent.click(screen.getByRole('button', { name: 'Input tax credit explained' }));
-    userEvent.click(screen.getByLabelText('Close this dialog window'));
-    expect(screen.queryByText(`Input Tax Credit (ITC)`)).toBeNull();
-  });
-
-  test('does not display button', () => {
-    expect(screen.queryByText('Edit GST & Input Tax Credit')).not.toBeInTheDocument();
-  });
-});
-
-describe('When policy change API returns validation messages', () => {
-  test('displays modal when createPolicyChange returns validation error', async () => {
-    useCreatePolicyChangeMock.mockReturnValue({
-      createPolicyChange: createPolicyChangeMock,
-      withdrawCreatePolicyChange: withdrawCreatePolicyChangeMock,
-      success: false,
-      processing: false,
-      error: {
-        message: 'VALIDATION_ERRORS',
-        code: 'BAD_USER_INPUT',
-        validations: {
-          validation_messages: [
-            {
-              field: '',
-              rule_id: 'VRP1178',
-              category: 'kickout',
-              code: 'declined_contact',
-              severity: 'error',
-              description: '',
-            },
-          ],
-        },
-      } as any,
-    });
-
+  test('correctly updates number of visible elements after revealing', async () => {
     render(
-      <policyDetailsContext.Provider value={mockMotorPolicyChange}>
-        <BusinessUsageSection setPolicyChangeState={jest.fn()} />
+      <policyDetailsContext.Provider value={mockHomePolicy}>
+        <BusinessUsageSection />
       </policyDetailsContext.Provider>
     );
-    expect(await screen.findByText(/Let’s continue this on the phone/)).toBeInTheDocument();
+
+    // Initially should have 2 show number buttons
+    expect(screen.getAllByText('Show number')).toHaveLength(2);
+
+    // Click first show number button
+    await userEvent.click(screen.getAllByText('Show number')[0]);
+
+    // Should now have 1 show number button and 1 revealed number
+    expect(screen.getAllByText('Show number')).toHaveLength(1);
+    expect(screen.getAllByText('1300 332 048')).toHaveLength(1);
+  });
+
+  test('shows correct number of tracking events when revealing numbers', async () => {
+    const trackingDispatchMock = jest.fn();
+    render(
+      <SiteTrackingContext.Provider value={{ dispatch: trackingDispatchMock }}>
+        <policyDetailsContext.Provider value={mockHomePolicy}>
+          <BusinessUsageSection />
+        </policyDetailsContext.Provider>
+      </SiteTrackingContext.Provider>
+    );
+
+    const showNumberButtons = screen.getAllByText('Show number');
+    expect(showNumberButtons).toHaveLength(2);
+
+    // Click both show number buttons
+    await userEvent.click(showNumberButtons[0]);
+    await userEvent.click(showNumberButtons[1]);
+
+    // Should have two tracking events
+    expect(trackingDispatchMock).toHaveBeenCalledTimes(2);
+  });
+
+  test('displays correct number of elements in mobile app view', () => {
+    // Mock the useBrowserDetect hook to return isMobileApp as true
+    jest.mock('../../hooks/useBrowserDetect', () => ({
+      __esModule: true,
+      default: () => ({ isMobileApp: true })
+    }));
+
+    render(
+      <policyDetailsContext.Provider value={mockHomePolicy}>
+        <BusinessUsageSection />
+      </policyDetailsContext.Provider>
+    );
+
+    // Should have no show number buttons in mobile app
+    expect(screen.queryAllByText('Show number')).toHaveLength(0);
+    // Should have unmasked numbers directly
+    expect(screen.getAllByText('1300 332 048')).toHaveLength(2);
+    
+    const callLinks = screen.getAllByText('1300 332 048');
+    callLinks.forEach(link => {
+      expect(link).toHaveAttribute('href', 'tel:1300332048');
+    });
   });
 });
