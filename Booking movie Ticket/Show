@@ -3,6 +3,7 @@ import { Button, type LinkProps } from '@iag/chroma-react-ui.components';
 import { Link } from '@iag/chroma-react-ui.link';
 import type React from 'react';
 import { type ReactNode, useContext, useState } from 'react';
+import { useBrandUtils } from '../../hooks/brand/useBrandUtils';
 import useBrowserDetect from '../../hooks/useBrowserDetect';
 import { ElementType, Interaction, PageName } from '../../models/SiteTracking';
 import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
@@ -18,6 +19,7 @@ type ShowPhoneNumberProps = {
 
 const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
   tt,
+  tExists,
   maskedNumber,
   unmaskedNumber,
   variant,
@@ -29,7 +31,7 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
   const [showLink, setShowLink] = useState(true);
   const trackingEventContext = useContext(SiteTrackingContext);
   const { isMobileApp } = useBrowserDetect();
-  console.log('is mobile app', isMobileApp);
+  const { getFullBrandStringNameByUserType } = useBrandUtils({ tExists });
   const revealNumberEvent = () => {
     const revealNumber = {
       pageName: pageName || PageName.DASHBOARD,
@@ -53,6 +55,25 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
       },
     };
     trackingEventContext.dispatch(clickedNumber);
+  };
+  const getPrefixText = () => {
+    if (!prefix) {
+      return '';
+    }
+    if (typeof prefix === 'string') {
+      return tt(getFullBrandStringNameByUserType(prefix));
+    }
+    return prefix;
+  };
+
+  const getSuffixText = () => {
+    if (!suffix) {
+      return '';
+    }
+    if (typeof suffix === 'string') {
+      return tt(getFullBrandStringNameByUserType(suffix));
+    }
+    return suffix;
   };
   const handleShowNumber = (e: React.MouseEvent) => {
     revealNumberEvent();
@@ -114,6 +135,7 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
               {tt(`pages.callUs.showNumberText`)}
             </Link>
           )}
+          {suffix && <span>{getSuffixText()} </span>}
         </span>
       </Button>
     );
@@ -122,7 +144,7 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
   // Desktop view with masking logic
   return (
     <span className="flex flex-wrap gap-1 self-center">
-      {prefix && <span>{prefix} </span>}
+      {prefix && <span>{getPrefixText()} </span>}
       {isVisible ? (
         <NavigationLink
           to={tt('pages.callUs.link')}
@@ -141,10 +163,10 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
           onClick={handleShowNumber}
           className="text-blue-600 hover:text-blue-800 text-sm focus:outline-none no-underline self-center"
         >
-          {tt(`pages.callUs.showNumberText`)}
+          {tt(`pages.callUs.showNumberText`)}{' '}
         </Link>
       )}
-      {suffix && <span>{suffix} </span>}
+      {suffix && <span>{getSuffixText()} </span>}
     </span>
   );
 };
