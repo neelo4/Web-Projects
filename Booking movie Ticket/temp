@@ -1,40 +1,42 @@
-const CannotEditPaymentPlanModal: React.FC<Props & BrandDataProps> = ({
-  isOpen,
-  onClose,
-  t,
+export const BusinessAlertModal: FunctionComponent<Props & BrandDataProps> = ({
+  showModal,
+  onShowModal,
   tt,
-  tExists
+  t,
+  tExists,
 }) => {
-  const { policyNumber } = useContext(policyDetailsContext);
-
+  const { policyNumber } = useContext(PolicyDetailsContext);
+  
   return (
-    <BasicModal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={tt('pages.paymentPlan.editDenied.heading')}
-      showBackBtn={true}
-    >
-      <div data-testid="modal-content">
-        <p data-testid="message1">
-          {tt('pages.paymentPlan.editDenied.message1')}
-        </p>
-        <p data-testid="message2">
-          {tExists('pages.callUs.showNumberText') ? (
-            <ShowPhoneNumber
-              maskedNumber={tt('pages.callUs.maskLinkLabel')}
-              unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
-              tt={tt}
-              prefix={tt('pages.paymentPlan.editDenied.messagePrefix')}
-              suffix={tt('pages.paymentPlan.editDenied.messageSuffix')}
-            />
-          ) : (
-            tt('pages.paymentPlan.editDenied.message2')
-          )}
-        </p>
-        <p data-testid="message3">
-          {tt('pages.paymentPlan.editDenied.message3', { policyNumber })}
-        </p>
-      </div>
-    </BasicModal>
+    <Fragment>
+      <CustomStylingBasicModal
+        appElement={document.getElementById('root')}
+        brand={getBrand()}
+        describedby=""
+        isOpen={showModal}
+        labelledby={tt('pages.businessUsage.info.header')}
+        onClose={() => onShowModal(false)}
+      >
+        <h4 className="h4 pv-mr-8 pv-mt-3">{tt('pages.businessUsage.info.header')}</h4>
+        {tt('pages.businessUsage.info.section1')}
+        {tExists('pages.callUs.showNumberText') ? (
+          <ShowPhoneNumber
+            maskedNumber={tt('pages.callUs.maskLinkLabel')}
+            unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
+            tt={tt}
+            prefix={tt('pages.businessUsage.info.sectionPrefix')}
+            suffix={tt('pages.businessUsage.info.sectionSuffix')}
+          />
+        ) : (
+          tt('pages.businessUsage.info.section2')
+        )}
+        <p>{`${tt('pages.businessUsage.info.section3')} ${policyNumber}`}</p>
+        <Button variant="primaryOutline" onClick={() => onShowModal(false)}>
+          {tt('labels.back')}
+        </Button>
+      </CustomStylingBasicModal>
+    </Fragment>
   );
 };
+
+export default connectIagBrand()(BusinessAlertModal);
