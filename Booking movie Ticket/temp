@@ -1,79 +1,23 @@
-import { type BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
-import { Icon } from '@iag/chroma-react-ui.icon';
-import { NavigationButton } from '@iag/chroma-react-ui.navigation-button';
-import { ModalRestrictedEntry } from '@iag/chroma-react-ui.modal';
-import ShowPhoneNumber from '../ShowPhoneNumber';
+const modalHeading = tt('constants.unavailableAssetChangeModal.title');
+const modalContent = tExists('pages.callUs.showNumberText') 
+  ? <ShowPhoneNumber
+      maskedNumber={tt('pages.callUs.maskLinkLabel')}
+      unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
+      prefix={tt('constants.unavailableAssetChangeModal.prefix')}
+      suffix={tt('constants.unavailableAssetChangeModal.suffix')}
+      tt={tt}
+    />
+  : t('constants.unavailableAssetChangeModal.description', { policyNumber });
 
-const RestrictedNavigationLink: React.FC<Props & BrandDataProps> = ({
-  tt,
-  t,
-  tExists,
-  editButtonLabel,
-  editButtonTrackingName,
-  modalTrackingName,
-  assetNumber,
-  assetPath,
-  amendmentType,
-  policyNumber,
-  productType,
-  referralCodes,
-  mtaEnalbed
-}) => {
-  if (mtaEnalbed) {
-    // biome-ignore lint: existing behavior
-    const publicPath = useFeatureConfig(FeatureName.PUBLIC_PATH);
-    return (
-      <NavigationButton
-        dataTestid="RestrictedNavigation"
-        dataTrackingName={editButtonTrackingName}
-        to={toExternalUrlWithParams(
-          `${publicPath}policychange/policies/${productType}/${policyNumber}${
-            assetNumber
-              ? `/asset/${assetNumber}/${assetPath}/amend/${amendmentType}`
-              : `/${assetPath}/amend/${amendmentType}`
-          }`
-        )}
-        variant="primaryOutline"
-      >
-        <div data-testid="EditButton">{editButtonLabel}</div>
-      </NavigationButton>
-    );
-  }
-
-  const modalHeading = tt('constants.unavailableAssetChangeModal.title');
-  const modalContent = tExists('pages.callUs.showNumberText') 
-    ? {
-        prefix: tt('constants.unavailableAssetChangeModal.prefix'),
-        number: tt('pages.callUs.maskLinkLabel'),
-        unmaskedNumber: tt('constants.phoneNumbers.generalEnquiries'),
-        suffix: tt('constants.unavailableAssetChangeModal.suffix')
-      }
-    : t('constants.unavailableAssetChangeModal.description', { policyNumber });
-
-  return (
-    <ModalRestrictedEntry
-      modalHeading={modalHeading}
-      modalContent={
-        tExists('pages.callUs.showNumberText') ? (
-          <ShowPhoneNumber
-            maskedNumber={modalContent.number}
-            unmaskedNumber={modalContent.unmaskedNumber}
-            prefix={modalContent.prefix}
-            suffix={modalContent.suffix}
-            tt={tt}
-          />
-        ) : (
-          modalContent
-        )
-      }
-      modalTrackingName={modalTrackingName}
-      buttonName={editButtonLabel.toLowerCase().replaceAll(' ', '-')}
-      referrerCodes={referralCodes}
-    >
-      <Icon className="i-phone pv-mr-4" />
-      <div data-testid="EditButton">{editButtonLabel}</div>
-    </ModalRestrictedEntry>
-  );
-};
-
-export default connectIagBrand()(RestrictedNavigationLink);
+return (
+  <ModalRestrictedEntry
+    modalHeading={modalHeading}
+    modalContent={modalContent}
+    modalTrackingName={modalTrackingName}
+    buttonName={editButtonLabel.toLowerCase().replaceAll(' ', '-')}
+    referrerCodes={referralCodes}
+  >
+    <Icon className="i-phone pv-mr-4" />
+    <div data-testid="EditButton">{editButtonLabel}</div>
+  </ModalRestrictedEntry>
+);
