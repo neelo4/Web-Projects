@@ -1,23 +1,74 @@
-const modalHeading = tt('constants.unavailableAssetChangeModal.title');
-const modalContent = tExists('pages.callUs.showNumberText') 
-  ? <ShowPhoneNumber
-      maskedNumber={tt('pages.callUs.maskLinkLabel')}
-      unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
-      prefix={tt('constants.unavailableAssetChangeModal.prefix')}
-      suffix={tt('constants.unavailableAssetChangeModal.suffix')}
-      tt={tt}
-    />
-  : t('constants.unavailableAssetChangeModal.description', { policyNumber });
+export const ModalContact: React.FC<ContentModalProps> = ({
+  title = "Let's continue this on the phone",
+}) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [showLink, setShowLink] = useState(true);
+  
+  const handleShowNumber = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsVisible(true);
+    setShowLink(false);
+    // Track reveal number event
+    trackingEvent({
+      ...siteTrackingData,
+      interaction: Interactions.CLICK,
+      name: ActionNames.CONTINUE,
+      type: ElementType.BUTTON,
+      form: FormNames.GENERIC_MODAL,
+    });
+  };
 
-return (
-  <ModalRestrictedEntry
-    modalHeading={modalHeading}
-    modalContent={modalContent}
-    modalTrackingName={modalTrackingName}
-    buttonName={editButtonLabel.toLowerCase().replaceAll(' ', '-')}
-    referrerCodes={referralCodes}
-  >
-    <Icon className="i-phone pv-mr-4" />
-    <div data-testid="EditButton">{editButtonLabel}</div>
-  </ModalRestrictedEntry>
-);
+  const handleNumberClick = () => {
+    // Track clicked number event
+    trackingEvent({
+      ...siteTrackingData,
+      interaction: Interactions.CLICK,
+      name: ActionNames.CALL,
+      type: ElementType.BUTTON,
+      form: FormNames.GENERIC_MODAL,
+    });
+  };
+
+  return (
+    <Modal title={title}>
+      <div className={styles.flexWrapper}>
+        <Button
+          onClick={(event) => {
+            onClose(event);
+            trackingEvent({
+              ...siteTrackingData,
+              interaction: Interactions.CLICK,
+              name: ActionNames.CONTINUE,
+              type: ElementType.BUTTON,
+              form: FormNames.GENERIC_MODAL,
+            });
+          }}
+          variant="outline"
+        >
+          Continue with cancellation
+        </Button>
+        <div className="flex items-center gap-1">
+          {isVisible ? (
+            <Link
+              href={AnchorLinks.TELEPHONE_LINK}
+              variant="buttonPrimary"
+              onClick={handleNumberClick}
+            >
+              1300 332 048
+            </Link>
+          ) : (
+            <span>1300 XXX XXX</span>
+          )}
+          {showLink && (
+            <Link
+              onClick={handleShowNumber}
+              className="text-blue-600 hover:text-blue-800 text-sm"
+            >
+              Show number
+            </Link>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+};
