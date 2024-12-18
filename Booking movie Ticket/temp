@@ -30,7 +30,9 @@
       >
         <span className="inline-flex items-center gap-1">
           Call 1300 ••• ••• 
-          <span className="text-sm">Show number</span>
+          {showLink && (
+            <span className="text-sm">Show number</span>
+          )}
         </span>
       </Link>
     )}
