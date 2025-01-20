@@ -1,40 +1,43 @@
-<div className={styles.flexWrapper}>
-  <Button
-    onClick={(event) => {
-      onClose(event);
-      trackingEvent({
-        ...siteTrackingData,
-        interaction: Interactions.CLICK,
-        name: ActionNames.CONTINUE,
-        type: ElementType.BUTTON,
-        form: FormNames.REPLACE_VEHICLE_MODAL,
-      });
-    }}
-    variant="outline"
-  >
-    Continue with cancellation
-  </Button>
-  <div className="flex items-center gap-1">
-    {isVisible ? (
-      <Link 
-        href={AnchorLinks.TELEPHONE_LINK} 
-        variant="buttonPrimary" 
-        onClick={handleNumberClick}
-      >
-        Call 1300 332 048
-      </Link>
+return paymentError ? (
+  <>
+    <Link onClick={handleBackButtonClick} data-tealeaf-unmask>
+      <Icon className="i-angle-left pv-text-xl" />
+      {tt('labels.back')}
+    </Link>
+    {paymentError.code ? (
+      <TechnicalError
+        id="PreparePaymentError"
+        title={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.title`)}
+        message={
+          tExists('pages.callUs.showNumberText') ? (
+            <span className="font-semibold self-center mt-2">
+              {' '}
+              <ShowPhoneNumber
+                maskedNumber={tt('pages.callUs.maskLinkLabel')}
+                unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
+                prefix={tt(
+                  `error.paymentMFEError.${paymentError.type}.${paymentError.code}.technicalMessagePrefix`
+                )}
+                suffix={tt(
+                  `error.paymentMFEError.${paymentError.type}.${paymentError.code}.technicalMessageSuffix`
+                )}
+              />
+            </span>
+          ) : (
+            tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.message`)
+          )
+        }
+      />
     ) : (
-      <Link 
-        variant="buttonPrimary"
-        onClick={handleShowNumber}
-      >
-        <span className="inline-flex items-center gap-1">
-          Call 1300 ••• ••• 
-          {showLink && (
-            <span className="text-sm">Show number</span>
-          )}
-        </span>
-      </Link>
+      <TechnicalError id="PreparePaymentError" traceId={getTechErrorTraceId()} />
     )}
-  </div>
-</div>
+  </>
+) : paymentData ? (
+  useUnifiedPaymentMfe ? (
+    <PaymentMfe {...(paymentData as OneOffPaymentProps)} />
+  ) : (
+    <OneOffPaymentMfe {...(paymentData as OneOffPaymentMfeProps)} />
+  )
+) : (
+  <StandardLoader />
+);
