@@ -1,43 +1,20 @@
-return paymentError ? (
-  <>
-    <Link onClick={handleBackButtonClick} data-tealeaf-unmask>
-      <Icon className="i-angle-left pv-text-xl" />
-      {tt('labels.back')}
-    </Link>
-    {paymentError.code ? (
-      <TechnicalError
-        id="PreparePaymentError"
-        title={tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.title`)}
-        message={
-          tExists('pages.callUs.showNumberText') ? (
-            <span className="font-semibold self-center mt-2">
-              {' '}
-              <ShowPhoneNumber
-                maskedNumber={tt('pages.callUs.maskLinkLabel')}
-                unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
-                prefix={tt(
-                  `error.paymentMFEError.${paymentError.type}.${paymentError.code}.technicalMessagePrefix`
-                )}
-                suffix={tt(
-                  `error.paymentMFEError.${paymentError.type}.${paymentError.code}.technicalMessageSuffix`
-                )}
-              />
-            </span>
-          ) : (
-            tt(`error.paymentMFEError.${paymentError.type}.${paymentError.code}.message`)
-          )
-        }
-      />
+return (
+  <Alert id="InfoAlert" data-testid="InfoAlert" variant="information" data-tealeaf-unmask>
+    <p>
+      <strong>{tt('constants.editPaymentInfo.title')}</strong>
+    </p>
+    {tExists('pages.callUs.showNumberText') ? (
+      <div>
+        <ShowPhoneNumber
+          maskedNumber={tt('pages.callUs.maskLinkLabel')}
+          unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
+          prefix={tt('constants.editPaymentInfo.descriptionPrefix')}
+          suffix={tt('constants.editPaymentInfo.descriptionSuffix')}
+          pageName="/policy-details"
+        />
+      </div>
     ) : (
-      <TechnicalError id="PreparePaymentError" traceId={getTechErrorTraceId()} />
+      <p>{tt(getFullBrandStringNameByUserType('constants.editPaymentInfo.description'))}</p>
     )}
-  </>
-) : paymentData ? (
-  useUnifiedPaymentMfe ? (
-    <PaymentMfe {...(paymentData as OneOffPaymentProps)} />
-  ) : (
-    <OneOffPaymentMfe {...(paymentData as OneOffPaymentMfeProps)} />
-  )
-) : (
-  <StandardLoader />
+  </Alert>
 );
