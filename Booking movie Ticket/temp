@@ -1,40 +1,33 @@
-const AlertElement: React.FC<Props> = (props) => {
-  const { variant, className, trackingName, children, dataTealeafUnmask = false } = props;
-  const trackingEventContext = useContext(SiteTrackingContext);
-
-  // biome-ignore lint: existing behavior
-  useEffect(() => {
-    if (trackingName) {
-      trackingEventContext.dispatch({
-        interaction: Interaction.SHOW,
-        element: {
-          type: ElementType.ALERT,
-          name: trackingName,
-          subType: variant,
-        },
-      });
-    }
-  }, [trackingEventContext, trackingName]);
-
-  // Helper function to process children with conditional check
-  const processChildren = (childNodes: React.ReactNode): React.ReactNode => {
-    if (!tExists('pages.callUs.showNumberText')) {
-      return React.Children.map(childNodes, child => {
-        if (React.isValidElement(child) && child.type === ShowPhoneNumber) {
-          // Return null or alternate content for ShowPhoneNumber components
-          return null;
-        }
-        return child;
-      });
-    }
-    return childNodes;
-  };
-
-  return (
-    <Alert variant={variant} className={className} {...getTealeafAttr(dataTealeafUnmask)}>
-      {processChildren(children)}
-    </Alert>
-  );
-};
-
-export default AlertElement;
+export const RenewalNotification: React.FC<BrandDataProps & Props> = ({
+  if (shouldNotifyReviewRenewal) {
+    return (
+      <AlertElement
+        variant="warning"
+        trackingName="policy-due-for-renewal-banner"
+        className="pv-mb-8"
+      >
+        <p>
+          <strong>
+            {tt(getFullBrandStringNameByUserType('pages.policyDetails.renewals.title'))}
+          </strong>
+        </p>
+        <div>
+          {tt('pages.policyDetails.renewals.reviewText', { date: renewalsStartDate })}
+          <ShowPhoneNumber
+            maskedNumber={tt('pages.callUs.maskLinkLabel')}
+            unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
+            prefix={tt('pages.policyDetails.renewals.changesTextPrefix', {
+              date: renewalsStartDate,
+            })}
+            suffix={tt('pages.policyDetails.renewals.changesTextSuffix')}
+            pageName="/policy-details"
+          />
+        </div>
+        <ButtonGroup className="alert-btn-group">
+          {isShowPhoneIcon ? viewRenewalButton() : renderUnsupportedRenewalModal()}
+        </ButtonGroup>
+      </AlertElement>
+    );
+  }
+  return null;
+});
