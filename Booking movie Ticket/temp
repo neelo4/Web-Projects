@@ -1,33 +1,35 @@
-export const RenewalNotification: React.FC<BrandDataProps & Props> = ({
-  if (shouldNotifyReviewRenewal) {
-    return (
-      <AlertElement
-        variant="warning"
-        trackingName="policy-due-for-renewal-banner"
-        className="pv-mb-8"
-      >
-        <p>
-          <strong>
-            {tt(getFullBrandStringNameByUserType('pages.policyDetails.renewals.title'))}
-          </strong>
-        </p>
-        <div>
-          {tt('pages.policyDetails.renewals.reviewText', { date: renewalsStartDate })}
-          <ShowPhoneNumber
-            maskedNumber={tt('pages.callUs.maskLinkLabel')}
-            unmaskedNumber={tt('constants.phoneNumbers.generalEnquiries')}
-            prefix={tt('pages.policyDetails.renewals.changesTextPrefix', {
-              date: renewalsStartDate,
-            })}
-            suffix={tt('pages.policyDetails.renewals.changesTextSuffix')}
-            pageName="/policy-details"
-          />
-        </div>
-        <ButtonGroup className="alert-btn-group">
-          {isShowPhoneIcon ? viewRenewalButton() : renderUnsupportedRenewalModal()}
-        </ButtonGroup>
-      </AlertElement>
-    );
+const PhoneLink: React.FC<{ isButton?: boolean }> = ({ isButton = false }) => {
+  const { t } = useTranslation()
+  const brand = ApiClient.getBrand()
+  const [isVisible, setIsVisible] = useState(false)
+  const [showLink, setShowLink] = useState(true)
+  
+  const trackingSuffix = isButton ? '-button' : ''
+  const linkProps = {
+    'data-tracking-name': `${brand.toLowerCase()}-telephone${trackingSuffix}`,
+    href: `tel:${t('constants.phoneNumber')}`,
+    ...(isButton && { button: 'primary' })
   }
-  return null;
-});
+
+  const handleShowNumber = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsVisible(true)
+    setShowLink(false)
+  }
+
+  return (
+    <Link {...linkProps}>
+      <span className="inline-flex items-center gap-1">
+        {isVisible ? t('constants.phoneNumber') : t('constants.phoneNumberDisplay')}
+        {showLink && (
+          <Link
+            onClick={handleShowNumber}
+            className={`${isButton ? 'text-white' : 'text-blue-600'} hover:text-blue-800 text-sm focus:outline-none`}
+          >
+            {t('pages.callUs.showNumberText')}
+          </Link>
+        )}
+      </span>
+    </Link>
+  )
+}
