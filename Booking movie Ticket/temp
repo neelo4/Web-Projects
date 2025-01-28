@@ -1,14 +1,125 @@
-if (policy.policyCurrentStatus === PolicyStatusOrder.PaymentOverdue) {
+import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
+import { Link } from '@iag/chroma-react-ui.components';
+import React, { ReactNode, useContext, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import useBrowserDetect from '../../hooks/useBrowserDetect';
+import { ActionName, ElementName, ElementType, Interaction, PageName } from '../../models/SiteTracking';
+import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
+
+interface PhoneNumberProps {
+  content: string;
+  pagename?: string;
+  args?: object;
+}
+
+interface MarkdownProps {
+  content: string;
+  telLink: string;
+  showNumber: boolean;
+  maskedNumber: string;
+  unmaskedNumber: string;
+  showNumberText: string;
+  revealPhone: (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => void;
+}
+
+function MarkdownLinkRenderer(
+  href: string,
+  children: ReactNode & ReactNode[],
+  { telLink, showNumber, maskedNumber, unmaskedNumber, showNumberText, revealPhone }: Omit<MarkdownProps, 'content'>,
+) {
+  if (href === telLink) {
+    return (
+      <>
+        {!showNumber && maskedNumber}
+        <Link data-testid="phoneNumberLink" onClick={revealPhone}>
+          {showNumber ? unmaskedNumber : <span className="ml-2">{showNumberText}</span>}
+        </Link>
+      </>
+    );
+  } else {
+    return (
+      <Link target="_blank" href={href}>
+        {children}
+      </Link>
+    );
+  }
+}
+
+function Markdown({ content, ...other }: MarkdownProps) {
   return (
-    <PolicyNotification
-      type="warning"
-      label={tt(paymentOverdueHeading)}
-      subtext={
-        <PhoneNumber 
-          content={tt(getFullBrandStringNameByUserType('overdueForRenewalHeading'))}
-          pagename={PageName.DASHBOARD}
-        />
-      }
+    <ReactMarkdown
+      components={{
+        a: ({ children, href }) => {
+          return MarkdownLinkRenderer(href || '', children, other);
+        },
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
+}
+
+function PhoneNumber({ content, pagename, args, tt, t, tExists }: PhoneNumberProps & BrandDataProps): JSX.Element {
+  const [showNumber, setShowNumber] = useState(false);
+  const trackingEventContext = useContext(SiteTrackingContext);
+  const { isMobileApp } = useBrowserDetect();
+  const maskedNumber: string = tt('constants.phoneNumbers.maskGeneralEnquiries');
+  const unmaskedNumber: string = tt('constants.phoneNumbers.generalEnquiries');
+  const telLink: string = tt('constants.phoneNumbers.generalEnquiriesNewTelLink');
+
+  const revealPhone = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
+    !showNumber && event.preventDefault();
+
+    showNumber ? clickedNumberEvent() : revealNumberEvent();
+
+    const link = event.currentTarget;
+    link.textContent = unmaskedNumber;
+    link.removeAttribute('onClick');
+    link.setAttribute('href', telLink);
+    setShowNumber(true);
+  };
+
+  const revealNumberEvent = () => {
+    const revealNumber = {
+      pageName: pagename || PageName.DASHBOARD,
+      interaction: Interaction.CLICK,
+      element: {
+        name: ElementName.CALLUS,
+        value: ActionName.SHOW_NUMBER,
+        type: ElementType.LINK,
+      },
+    };
+    trackingEventContext?.dispatch(revealNumber);
+  };
+
+  const clickedNumberEvent = () => {
+    const clickedNumber = {
+      pageName: pagename || PageName.DASHBOARD,
+      interaction: Interaction.CLICK,
+      element: {
+        name: ElementName.CALLUS,
+        value: unmaskedNumber.replaceAll(' ', '-'),
+        type: ElementType.LINK,
+      },
+    };
+    trackingEventContext?.dispatch(clickedNumber);
+  };
+
+  const ttContent = (tt(content, args) || '').replaceAll('{target=_blank}', '');
+
+  return !ttContent.includes(telLink) || isMobileApp || !tExists('pages.contactUs.callUs.showNumberText') ? (
+    <>{t(content, args)}</>
+  ) : (
+    <Markdown
+      content={ttContent}
+      telLink={telLink}
+      showNumber={showNumber}
+      maskedNumber={maskedNumber}
+      unmaskedNumber={unmaskedNumber}
+      showNumberText={tt('pages.contactUs.callUs.showNumberText')}
+      revealPhone={revealPhone}
     />
   );
 }
+
+export default connectIagBrand()(PhoneNumber);
