@@ -18,6 +18,7 @@ interface PhoneNumberProps {
   pagename?: string;
   args?: object;
   variant?: 'buttonPrimary' | 'default';
+  buttonText?: string; // Optional text for button
 }
 
 interface MarkdownProps {
@@ -82,8 +83,10 @@ function PhoneNumber({
   t,
   tExists,
   variant = 'default',
+  buttonText,
 }: PhoneNumberProps & BrandDataProps): JSX.Element {
   const [showNumber, setShowNumber] = useState(false);
+  const [showLink, setShowLink] = useState(true);
   const trackingEventContext = useContext(SiteTrackingContext);
   const { isMobileApp } = useBrowserDetect();
   
@@ -123,6 +126,7 @@ function PhoneNumber({
     e.preventDefault();
     revealNumberEvent();
     setShowNumber(true);
+    setShowLink(false);
   };
 
   const handleNumberClick = () => {
@@ -141,7 +145,7 @@ function PhoneNumber({
         className="pv-m-0 gap-1"
       >
         <span className="inline-flex items-center gap-1">
-          {t(content, args)} {/* This will show "Call us on" or any other prefix */}
+          {buttonText && `${buttonText} `}  {/* Show button text if provided */}
           {showNumber ? (
             <Link
               href={telLink}
@@ -154,12 +158,14 @@ function PhoneNumber({
           ) : (
             <>
               <span className="text-white">{maskedNumber}</span>
-              <Link
-                onClick={handleShowNumber}
-                className="text-white hover:text-blue-800 text-sm focus:outline-none"
-              >
-                {showNumberText}
-              </Link>
+              {showLink && (
+                <Link
+                  onClick={handleShowNumber}
+                  className="text-white hover:text-blue-800 text-sm focus:outline-none"
+                >
+                  {showNumberText}
+                </Link>
+              )}
             </>
           )}
         </span>
