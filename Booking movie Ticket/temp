@@ -1,9 +1,8 @@
-// biome-ignore lint/style/useImportType: <explanation>
-import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
-import { Link } from '@iag/chroma-react-ui.components';
-// biome-ignore lint/style/useImportType: <explanation>
 import React, { ReactNode, useContext, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { Button } from '@iag/chroma-react-ui.components';
+import { Link } from '@iag/chroma-react-ui.components';
+import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
 import useBrowserDetect from '../../hooks/useBrowserDetect';
 import {
   ActionName,
@@ -18,6 +17,7 @@ interface PhoneNumberProps {
   content: string;
   pagename?: string;
   args?: object;
+  variant?: 'buttonPrimary' | 'default';
 }
 
 interface MarkdownProps {
@@ -51,7 +51,6 @@ function MarkdownLinkRenderer(
         </Link>
       </>
     );
-    // biome-ignore lint/style/noUselessElse: <explanation>
   } else {
     return (
       <Link target="_blank" href={href}>
@@ -82,25 +81,16 @@ function PhoneNumber({
   tt,
   t,
   tExists,
+  variant = 'default',
 }: PhoneNumberProps & BrandDataProps): JSX.Element {
   const [showNumber, setShowNumber] = useState(false);
   const trackingEventContext = useContext(SiteTrackingContext);
   const { isMobileApp } = useBrowserDetect();
-  const maskedNumber: string = tt('constants.phoneNumbers.maskGeneralEnquiries');
-  const unmaskedNumber: string = tt('constants.phoneNumbers.generalEnquiries');
-  const telLink: string = tt('constants.phoneNumbers.generalEnquiriesTelLink');
-
-  const revealPhone = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
-    !showNumber && event.preventDefault();
-
-    showNumber ? clickedNumberEvent() : revealNumberEvent();
-
-    const link = event.currentTarget;
-    link.textContent = unmaskedNumber;
-    link.removeAttribute('onClick');
-    link.setAttribute('href', telLink);
-    setShowNumber(true);
-  };
+  
+  const maskedNumber = tt('constants.phoneNumbers.maskGeneralEnquiries');
+  const unmaskedNumber = tt('constants.phoneNumbers.generalEnquiries');
+  const telLink = tt('constants.phoneNumbers.generalEnquiriesTelLink');
+  const showNumberText = tt('pages.callUs.showNumberText');
 
   const revealNumberEvent = () => {
     const revealNumber = {
@@ -128,6 +118,49 @@ function PhoneNumber({
     trackingEventContext?.dispatch(clickedNumber);
   };
 
+  const handleShowNumber = (e: React.MouseEvent) => {
+    e.preventDefault();
+    revealNumberEvent();
+    setShowNumber(true);
+  };
+
+  const handleNumberClick = () => {
+    clickedNumberEvent();
+  };
+
+  if (variant === 'buttonPrimary') {
+    return (
+      <Button
+        variant="primary"
+        onClick={showNumber ? handleNumberClick : handleShowNumber}
+        className="pv-m-0 gap-1"
+      >
+        <span className="inline-flex items-center gap-1">
+          {showNumber ? (
+            <Link
+              href={telLink}
+              onClick={handleNumberClick}
+              target="_blank"
+              className="text-white no-underline"
+            >
+              {unmaskedNumber}
+            </Link>
+          ) : (
+            <>
+              <span className="text-white">{maskedNumber}</span>
+              <Link
+                onClick={handleShowNumber}
+                className="text-white hover:text-blue-800 text-sm focus:outline-none"
+              >
+                {showNumberText}
+              </Link>
+            </>
+          )}
+        </span>
+      </Button>
+    );
+  }
+
   const ttContent = (tt(content, args) || '').replaceAll('{target=_blank}', '');
 
   return !ttContent.includes(telLink) || isMobileApp || !tExists('pages.callUs.showNumberText') ? (
@@ -139,8 +172,8 @@ function PhoneNumber({
       showNumber={showNumber}
       maskedNumber={maskedNumber}
       unmaskedNumber={unmaskedNumber}
-      showNumberText={tt('pages.callUs.showNumberText')}
-      revealPhone={revealPhone}
+      showNumberText={showNumberText}
+      revealPhone={handleShowNumber}
     />
   );
 }
