@@ -90,7 +90,18 @@ function PhoneNumber({
   const maskedNumber = tt('constants.phoneNumbers.maskGeneralEnquiries');
   const unmaskedNumber = tt('constants.phoneNumbers.generalEnquiries');
   const telLink = tt('constants.phoneNumbers.generalEnquiriesTelLink');
-  const showNumberText = tt('pages.callUs.showNumberText');
+
+  const revealPhone = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
+    !showNumber && event.preventDefault();
+
+    showNumber ? clickedNumberEvent() : revealNumberEvent();
+
+    const link = event.currentTarget;
+    link.textContent = unmaskedNumber;
+    link.removeAttribute('onClick');
+    link.setAttribute('href', telLink);
+    setShowNumber(true);
+  };
 
   const revealNumberEvent = () => {
     const revealNumber = {
@@ -118,49 +129,36 @@ function PhoneNumber({
     trackingEventContext?.dispatch(clickedNumber);
   };
 
-  const revealPhone = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
-    !showNumber && event.preventDefault();
+  const ttContent = (tt(content, args) || '').replaceAll('{target=_blank}', '');
 
-    showNumber ? clickedNumberEvent() : revealNumberEvent();
-
-    if (!showNumber) {
-      setShowNumber(true);
-    }
-  };
+  if (!ttContent.includes(telLink) || isMobileApp || !tExists('pages.callUs.showNumberText')) {
+    return <>{t(content, args)}</>;
+  }
 
   if (variant === 'buttonPrimary') {
     return (
-      <Button
-        variant="primary"
-        className="pv-m-0 gap-1"
-      >
-        <span className="inline-flex items-center gap-1">
-          {t(content, args)}
-          {!showNumber && maskedNumber}
-          <Link
-            data-testid="phoneNumberLink"
-            onClick={revealPhone}
-            className={`text-white hover:text-blue-800 text-sm focus:outline-none ${showNumber ? 'no-underline' : ''}`}
-          >
-            {showNumber ? unmaskedNumber : <span>{showNumberText}</span>}
-          </Link>
-        </span>
+      <Button variant="primary" className="pv-m-0 gap-1">
+        <Markdown
+          content={ttContent}
+          telLink={telLink}
+          showNumber={showNumber}
+          maskedNumber={maskedNumber}
+          unmaskedNumber={unmaskedNumber}
+          showNumberText={tt('pages.callUs.showNumberText')}
+          revealPhone={revealPhone}
+        />
       </Button>
     );
   }
 
-  const ttContent = (tt(content, args) || '').replaceAll('{target=_blank}', '');
-
-  return !ttContent.includes(telLink) || isMobileApp || !tExists('pages.callUs.showNumberText') ? (
-    <>{t(content, args)}</>
-  ) : (
+  return (
     <Markdown
       content={ttContent}
       telLink={telLink}
       showNumber={showNumber}
       maskedNumber={maskedNumber}
       unmaskedNumber={unmaskedNumber}
-      showNumberText={showNumberText}
+      showNumberText={tt('pages.callUs.showNumberText')}
       revealPhone={revealPhone}
     />
   );
