@@ -91,6 +91,7 @@ function PhoneNumber({
   const unmaskedNumber = tt('constants.phoneNumbers.generalEnquiries');
   const telLink = tt('constants.phoneNumbers.generalEnquiriesTelLink');
   const showNumberText = tt('pages.callUs.showNumberText');
+  const ttContent = (tt(content, args) || '').replaceAll('{target=_blank}', '');
 
   const revealNumberEvent = () => {
     const revealNumber = {
@@ -128,6 +129,10 @@ function PhoneNumber({
     clickedNumberEvent();
   };
 
+  if (!ttContent.includes(telLink) || isMobileApp || !tExists('pages.callUs.showNumberText')) {
+    return <>{t(content, args)}</>;
+  }
+
   if (variant === 'buttonPrimary') {
     return (
       <Button
@@ -136,6 +141,7 @@ function PhoneNumber({
         className="pv-m-0 gap-1"
       >
         <span className="inline-flex items-center gap-1">
+          {t(content, args)} {/* This will show "Call us on" or any other prefix */}
           {showNumber ? (
             <Link
               href={telLink}
@@ -161,11 +167,7 @@ function PhoneNumber({
     );
   }
 
-  const ttContent = (tt(content, args) || '').replaceAll('{target=_blank}', '');
-
-  return !ttContent.includes(telLink) || isMobileApp || !tExists('pages.callUs.showNumberText') ? (
-    <>{t(content, args)}</>
-  ) : (
+  return (
     <Markdown
       content={ttContent}
       telLink={telLink}
