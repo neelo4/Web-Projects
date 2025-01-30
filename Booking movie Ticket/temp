@@ -1,9 +1,17 @@
+// biome-ignore lint/style/useImportType: <explanation>
 import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
 import { Link } from '@iag/chroma-react-ui.components';
+// biome-ignore lint/style/useImportType: <explanation>
 import React, { ReactNode, useContext, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import useBrowserDetect from '../../hooks/useBrowserDetect';
-import { ActionName, ElementName, ElementType, Interaction, PageName } from '../../models/SiteTracking';
+import {
+  ActionName,
+  ElementName,
+  ElementType,
+  Interaction,
+  PageName,
+} from '../../models/SiteTracking';
 import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
 
 interface PhoneNumberProps {
@@ -25,7 +33,14 @@ interface MarkdownProps {
 function MarkdownLinkRenderer(
   href: string,
   children: ReactNode & ReactNode[],
-  { telLink, showNumber, maskedNumber, unmaskedNumber, showNumberText, revealPhone }: Omit<MarkdownProps, 'content'>,
+  {
+    telLink,
+    showNumber,
+    maskedNumber,
+    unmaskedNumber,
+    showNumberText,
+    revealPhone,
+  }: Omit<MarkdownProps, 'content'>
 ) {
   if (href === telLink) {
     return (
@@ -36,6 +51,7 @@ function MarkdownLinkRenderer(
         </Link>
       </>
     );
+    // biome-ignore lint/style/noUselessElse: <explanation>
   } else {
     return (
       <Link target="_blank" href={href}>
@@ -59,13 +75,20 @@ function Markdown({ content, ...other }: MarkdownProps) {
   );
 }
 
-function PhoneNumber({ content, pagename, args, tt, t, tExists }: PhoneNumberProps & BrandDataProps): JSX.Element {
+function PhoneNumber({
+  content,
+  pagename,
+  args,
+  tt,
+  t,
+  tExists,
+}: PhoneNumberProps & BrandDataProps): JSX.Element {
   const [showNumber, setShowNumber] = useState(false);
   const trackingEventContext = useContext(SiteTrackingContext);
   const { isMobileApp } = useBrowserDetect();
   const maskedNumber: string = tt('constants.phoneNumbers.maskGeneralEnquiries');
   const unmaskedNumber: string = tt('constants.phoneNumbers.generalEnquiries');
-  const telLink: string = tt('constants.phoneNumbers.generalEnquiriesNewTelLink');
+  const telLink: string = tt('constants.phoneNumbers.generalEnquiriesTelLink');
 
   const revealPhone = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
     !showNumber && event.preventDefault();
@@ -107,7 +130,7 @@ function PhoneNumber({ content, pagename, args, tt, t, tExists }: PhoneNumberPro
 
   const ttContent = (tt(content, args) || '').replaceAll('{target=_blank}', '');
 
-  return !ttContent.includes(telLink) || isMobileApp || !tExists('pages.contactUs.callUs.showNumberText') ? (
+  return !ttContent.includes(telLink) || isMobileApp || !tExists('pages.callUs.showNumberText') ? (
     <>{t(content, args)}</>
   ) : (
     <Markdown
@@ -116,7 +139,7 @@ function PhoneNumber({ content, pagename, args, tt, t, tExists }: PhoneNumberPro
       showNumber={showNumber}
       maskedNumber={maskedNumber}
       unmaskedNumber={unmaskedNumber}
-      showNumberText={tt('pages.contactUs.callUs.showNumberText')}
+      showNumberText={tt('pages.callUs.showNumberText')}
       revealPhone={revealPhone}
     />
   );
