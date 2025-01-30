@@ -1,20 +1,3 @@
-import React, { ReactNode, useContext, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import { Button } from '@iag/chroma-react-ui.components';
-import { Link } from '@iag/chroma-react-ui.components';
-import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
-import useBrowserDetect from '../../hooks/useBrowserDetect';
-import {
-  ActionName,
-  ElementName,
-  ElementType,
-  Interaction,
-  PageName,
-} from '../../models/SiteTracking';
-import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
-
-// ... (other interfaces remain the same)
-
 function PhoneNumber({
   content,
   pagename,
@@ -24,38 +7,105 @@ function PhoneNumber({
   tExists,
   variant = 'default',
 }: PhoneNumberProps & BrandDataProps): JSX.Element {
-  // ... (existing state and context declarations)
+  const [showNumber, setShowNumber] = useState(false);
+  const trackingEventContext = useContext(SiteTrackingContext);
+  const { isMobileApp } = useBrowserDetect();
 
-  const handleNumberClick = (e: React.MouseEvent) => {
+  const maskedNumber = tt('constants.phoneNumbers.maskGeneralEnquiries');
+  const unmaskedNumber = tt('constants.phoneNumbers.generalEnquiries');
+  const telLink = tt('constants.phoneNumbers.generalEnquiriesTelLink');
+  const showNumberText = tt('pages.callUs.showNumberText');
+
+  const revealNumberEvent = () => {
+    trackingEventContext?.dispatch({
+      pageName: pagename || PageName.DASHBOARD,
+      interaction: Interaction.CLICK,
+      element: {
+        name: ElementName.CALLUS,
+        value: ActionName.SHOW_NUMBER,
+        type: ElementType.LINK,
+      },
+    });
+  };
+
+  const clickedNumberEvent = () => {
+    trackingEventContext?.dispatch({
+      pageName: pagename || PageName.DASHBOARD,
+      interaction: Interaction.CLICK,
+      element: {
+        name: ElementName.CALLUS,
+        value: unmaskedNumber.replaceAll(' ', '-'),
+        type: ElementType.LINK,
+      },
+    });
+  };
+
+  const handleShowNumber = (e: React.MouseEvent) => {
     e.preventDefault();
+    revealNumberEvent();
+    setShowNumber(true);
+  };
+
+  const handleNumberClick = () => {
     clickedNumberEvent();
-    window.location.href = telLink; // Programmatically trigger tel link
   };
 
   if (variant === 'buttonPrimary') {
     return (
       <Button
         variant="primary"
-        href={showNumber ? telLink : undefined}
         onClick={showNumber ? handleNumberClick : handleShowNumber}
         className="pv-m-0 gap-1"
-        data-testid="phoneNumberButton"
       >
         {showNumber ? (
-          unmaskedNumber
+          <Link href={telLink} onClick={handleNumberClick} className="text-white no-underline">
+            {unmaskedNumber}
+          </Link>
         ) : (
           <>
-            {maskedNumber}
-            <span className="ml-2" data-testid="showNumberText">
+            <span className="text-white">{maskedNumber}</span>
+            <Link onClick={handleShowNumber} className="text-white hover:text-blue-800">
               {showNumberText}
-            </span>
+            </Link>
           </>
         )}
       </Button>
     );
   }
 
-  // ... (rest of the component remains the same)
+  const ttContent = (tt(content, args) || '').replaceAll('{target=_blank}', '');
+
+  return !ttContent.includes(telLink) || isMobileApp || !tExists('pages.callUs.showNumberText') ? (
+    <>{t(content, args)}</>
+  ) : (
+    <Markdown
+      content={ttContent}
+      telLink={telLink}
+      showNumber={showNumber}
+      maskedNumber={maskedNumber}
+      unmaskedNumber={unmaskedNumber}
+      showNumberText={showNumberText}
+      revealPhone={handleShowNumber}
+    />
+  );
 }
 
-export default connectIagBrand()(PhoneNumber);
+// Now integrating this into UnsupportedModalButton
+const UnsupportedModalButton: React.FC<PropsWithChildren<Props> & BrandDataProps> = ({}) => {
+  return (
+    <Modal>
+      <ButtonGroup>
+        {!hideBackButton && (
+          <Button variant="primaryOutline" onClick={closeHandler} className="pv-m-0">
+            {tt('labels.back')}
+          </Button>
+        )}
+        <Link className="pv-m-0" href={tt('constants.phoneNumbers.generalEnquiriesTelLink')} variant="buttonPrimary">
+          <PhoneNumber content="constants.documentTypes.callUsButton" pagename={PageName.POLICY_DETAILS} variant="buttonPrimary" />
+        </Link>
+      </ButtonGroup>
+    </Modal>
+  );
+};
+
+export default connectIagBrand()(UnsupportedModalButton);
