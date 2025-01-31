@@ -46,15 +46,25 @@ function MarkdownLinkRenderer(
   }: Omit<MarkdownProps, 'content'>
 ) {
   if (href === telLink) {
-    return (
-      <>
-        {!showNumber && maskedNumber}
-        <Link data-testid="phoneNumberLink" onClick={revealPhone} className={`${textVariant} no-underline`}>
-          {showNumber ? unmaskedNumber : <span className="ml-2">{showNumberText}</span>}
-        </Link>
-      </>
-    );
-    // biome-ignore lint/style/noUselessElse: <explanation>
+    if (textVariant === 'default') {
+      return (
+        <>
+          {!showNumber && maskedNumber}
+          <p>
+            {showNumber ? unmaskedNumber : <span className="ml-2">{showNumberText}</span>}
+          </p>
+        </>
+      );
+    } else {
+      return (
+        <>
+          {!showNumber && maskedNumber}
+          <Link data-testid="phoneNumberLink" onClick={revealPhone} className={`${textVariant} no-underline`}>
+            {showNumber ? unmaskedNumber : <span className="ml-2">{showNumberText}</span>}
+          </Link>
+        </>
+      );
+    }
   } else {
     return (
       <Link target="_blank" href={href}>
