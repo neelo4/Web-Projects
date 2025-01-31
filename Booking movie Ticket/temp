@@ -46,12 +46,15 @@ function MarkdownLinkRenderer(
     return (
       <>
         {!showNumber && maskedNumber}
-        <Link data-testid="phoneNumberLink" onClick={revealPhone}>
-          {showNumber ? unmaskedNumber : <span className="ml-2">{showNumberText}</span>}
-        </Link>
+        {showNumber ? (
+          <Link data-testid="phoneNumberLink" href={telLink} onClick={revealPhone}>
+            {unmaskedNumber}
+          </Link>
+        ) : (
+          <span className="ml-2">{showNumberText}</span>
+        )}
       </>
     );
-    // biome-ignore lint/style/noUselessElse: <explanation>
   } else {
     return (
       <Link target="_blank" href={href}>
@@ -82,7 +85,6 @@ function PhoneNumber({
   tt,
   t,
   tExists,
-  
 }: PhoneNumberProps & BrandDataProps): JSX.Element {
   const [showNumber, setShowNumber] = useState(false);
   const trackingEventContext = useContext(SiteTrackingContext);
@@ -96,10 +98,6 @@ function PhoneNumber({
 
     showNumber ? clickedNumberEvent() : revealNumberEvent();
 
-    const link = event.currentTarget;
-    link.textContent = unmaskedNumber;
-    link.removeAttribute('onClick');
-    link.setAttribute('href', telLink);
     setShowNumber(true);
   };
 
