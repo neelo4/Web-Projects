@@ -1,0 +1,170 @@
+import { fireEvent, screen } from '@testing-library/react';
+import { render } from '../../../shared/test-utils/renderWithProviders';
+import {
+  ActionName,
+  ElementName,
+  ElementType,
+  Interaction,
+  PageName,
+} from '../../models/SiteTracking';
+import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
+import PhoneNumber from './PhoneNumber';
+
+const mockTrackingEventContext = {
+  setElement: jest.fn(),
+  pageview: jest.fn(),
+  pageviewImmediately: jest.fn(),
+  dispatch: jest.fn(),
+};
+
+jest.mock('../../hooks/useBrowserDetect', () => ({
+  __esModule: true,
+  default: () => ({
+    isMobileApp: false
+  })
+}));
+
+describe('PhoneNumber Component', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('renders masked phone number initially with show number link', () => {
+    render(
+      <SiteTrackingContext.Provider value={mockTrackingEventContext}>
+        <PhoneNumber
+          content="constants.assistedModal.paragraphs.mid"
+          pagename={PageName.POLICY_DETAILS}
+        />
+      </SiteTrackingContext.Provider>
+    );
+
+    expect(screen.getByText(/1300 •{3} •{3}/)).toBeInTheDocument();
+    expect(screen.getByText('Show number')).toBeInTheDocument();
+  });
+
+  it('reveals phone number when show number is clicked', () => {
+    render(
+      <SiteTrackingContext.Provider value={mockTrackingEventContext}>
+        <PhoneNumber
+          content="constants.assistedModal.paragraphs.mid"
+          pagename={PageName.POLICY_DETAILS}
+        />
+      </SiteTrackingContext.Provider>
+    );
+
+    const showNumberLink = screen.getByTestId('phoneNumberLink');
+    fireEvent.click(showNumberLink);
+
+    expect(screen.getByText('1300 332 048')).toBeInTheDocument();
+    expect(mockTrackingEventContext.dispatch).toHaveBeenCalledWith({
+      pageName: PageName.POLICY_DETAILS,
+      interaction: Interaction.CLICK,
+      element: {
+        name: ElementName.CALLUS,
+        value: ActionName.SHOW_NUMBER,
+        type: ElementType.LINK,
+      },
+    });
+  });
+
+  it('tracks click when revealed phone number is clicked', () => {
+    render(
+      <SiteTrackingContext.Provider value={mockTrackingEventContext}>
+        <PhoneNumber
+          content="constants.assistedModal.paragraphs.mid"
+          pagename={PageName.POLICY_DETAILS}
+        />
+      </SiteTrackingContext.Provider>
+    );
+
+    // First click to reveal
+    const showNumberLink = screen.getByTestId('phoneNumberLink');
+    fireEvent.click(showNumberLink);
+
+    // Second click on revealed number
+    const phoneNumberLink = screen.getByText('1300 332 048');
+    fireEvent.click(phoneNumberLink);
+
+    expect(mockTrackingEventContext.dispatch).toHaveBeenLastCalledWith({
+      pageName: PageName.POLICY_DETAILS,
+      interaction: Interaction.CLICK,
+      element: {
+        name: ElementName.CALLUS,
+        value: '1300-332-048',
+        type: ElementType.LINK,
+      },
+    });
+  });
+
+  it('uses default dashboard page name when pagename prop is not provided', () => {
+    render(
+      <SiteTrackingContext.Provider value={mockTrackingEventContext}>
+        <PhoneNumber content="constants.assistedModal.paragraphs.mid" />
+      </SiteTrackingContext.Provider>
+    );
+
+    const showNumberLink = screen.getByTestId('phoneNumberLink');
+    fireEvent.click(showNumberLink);
+
+    expect(mockTrackingEventContext.dispatch).toHaveBeenCalledWith({
+      pageName: PageName.DASHBOARD,
+      interaction: Interaction.CLICK,
+      element: {
+        name: ElementName.CALLUS,
+        value: ActionName.SHOW_NUMBER,
+        type: ElementType.LINK,
+      },
+    });
+  });
+
+  it('renders without show number functionality for mobile app', () => {
+    jest.resetModules();
+    jest.mock('../../hooks/useBrowserDetect', () => ({
+      __esModule: true,
+      default: () => ({
+        isMobileApp: true
+      })
+    }));
+
+    render(
+      <SiteTrackingContext.Provider value={mockTrackingEventContext}>
+        <PhoneNumber
+          content="constants.assistedModal.paragraphs.mid"
+          pagename={PageName.POLICY_DETAILS}
+        />
+      </SiteTrackingContext.Provider>
+    );
+
+    expect(screen.queryByText('Show number')).not.toBeInTheDocument();
+  });
+
+  it('applies custom text variant when provided', () => {
+    render(
+      <SiteTrackingContext.Provider value={mockTrackingEventContext}>
+        <PhoneNumber
+          content="constants.assistedModal.paragraphs.mid"
+          textVariant="custom-text-class"
+        />
+      </SiteTrackingContext.Provider>
+    );
+
+    const link = screen.getByTestId('phoneNumberLink');
+    expect(link).toHaveClass('custom-text-class');
+  });
+
+  it('renders external links correctly', () => {
+    render(
+      <SiteTrackingContext.Provider value={mockTrackingEventContext}>
+        <PhoneNumber
+          content="Check our [website](https://example.com)"
+          pagename={PageName.POLICY_DETAILS}
+        />
+      </SiteTrackingContext.Provider>
+    );
+
+    const externalLink = screen.getByText('website');
+    expect(externalLink).toHaveAttribute('href', 'https://example.com');
+    expect(externalLink).toHaveAttribute('target', '_blank');
+  });
+});
