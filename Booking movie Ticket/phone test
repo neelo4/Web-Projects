@@ -1,0 +1,65 @@
+import { fireEvent, screen } from '@testing-library/react';
+import { render } from '../../../shared/test-utils/renderWithProviders';
+import {
+  ActionName,
+  ElementName,
+  ElementType,
+  Interaction,
+  PageName,
+} from '../../models/SiteTracking';
+import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
+import PhoneNumber from './PhoneNumber';
+
+const mockTrackingEventContext = {
+  setElement: jest.fn(),
+  pageview: jest.fn(),
+  pageviewImmediately: jest.fn(),
+  dispatch: jest.fn(),
+};
+
+describe('Phone Number test', () => {
+  it('renders phone number without crashing', async () => {
+    render(
+      <SiteTrackingContext.Provider value={mockTrackingEventContext}>
+        <div data-testid="phone-number-component">
+          <PhoneNumber
+            content="constants.assistedModal.paragraphs.mid"
+            pagename={PageName.POLICY_DETAILS}
+          />
+        </div>
+      </SiteTrackingContext.Provider>
+    );
+    const content = screen.getByTestId('phone-number-component');
+    expect(content).toBeInTheDocument();
+    // expect(content).toHaveTextContent('Call us on');
+    expect(content).toHaveTextContent('Call us on 1300 ••• •••Show number.');
+    expect(content).toHaveTextContent(' See our website (opens in new window) for when we/re available.')
+
+    expect(mockTrackingEventContext.dispatch).toHaveBeenCalledWith({
+      pageName: PageName.POLICY_DETAILS,
+      interaction: Interaction.CLICK,
+      element: {
+        name: ElementName.CALLUS,
+        value: ActionName.SHOW_NUMBER,
+        type: ElementType.LINK,
+      },
+    });
+
+    expect(content).toBeInTheDocument();
+    expect(content).toHaveTextContent('Call us on');
+    expect(content).toHaveTextContent('1300 332 048');
+
+    const phoneNumber = screen.getByText('1300 332 048');
+    fireEvent.click(phoneNumber);
+
+    expect(mockTrackingEventContext.dispatch).toHaveBeenCalledWith({
+      pageName: PageName.POLICY_DETAILS,
+      interaction: Interaction.CLICK,
+      element: {
+        name: ElementName.CALLUS,
+        value: '1300-332-048',
+        type: ElementType.LINK,
+      },
+    });
+  });
+});
