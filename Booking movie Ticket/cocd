@@ -1,0 +1,106 @@
+import { type BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
+import { Icon } from '@iag/chroma-react-ui.components';
+import type React from 'react';
+import { useContext, useState } from 'react';
+import { useIdentityEntitlements } from '../../hooks/identity';
+import { DocumentEntitlement } from '../../models/EntitlementOptions';
+import { PageName } from '../../models/SiteTracking';
+import { policyDetailsContext } from '../../pages/PolicyDetails';
+import { DocumentTransaction, SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
+import { useIsPolicyAmend } from '../../utils/entitlementsUtils';
+import CertificateOfCurrencyForm from '../request-certificate-of-currency/CertificateOfCurrencyForm';
+import NavigationButton from '../shared/NavigationButton';
+import PhoneNumber from '../shared/PhoneNumber';
+import type { SubmittedStatusState } from './CoCGenerationResponseMessage';
+import KeyDocCard from './KeyDocCard';
+import KeyDocCardContent from './KeyDocContent';
+
+type Props = {
+  title: string;
+  buttonLabel: string;
+  enabled: boolean;
+  setSubmittedStatusState: React.Dispatch<React.SetStateAction<SubmittedStatusState>>;
+};
+
+const CoCDocumentCard: React.FC<BrandDataProps & Props> = ({
+  t,
+  tt,
+  enabled,
+  setSubmittedStatusState,
+}) => {
+  const [showForm, setShowForm] = useState(false);
+  const [showDocLink, setShowDocLink] = useState(true);
+  const { productType, entitlements } = useContext(policyDetailsContext);
+  const isDocumentEntitlementView = useIdentityEntitlements(productType, DocumentEntitlement.View);
+  const canAmendPolicy = useIsPolicyAmend(entitlements);
+  const trackingEventContext = useContext(SiteTrackingContext);
+
+  const handleDocButtonClick = () => {
+    setShowForm(true);
+    setShowDocLink(false);
+
+    const extraDetail = {
+      transactionStart: true,
+      transactionType: DocumentTransaction.requestCoc,
+    };
+
+    trackingEventContext.dispatch({
+      interaction: `api|request-certificate-of-currency`,
+      data: extraDetail,
+    });
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
+    setShowDocLink(true);
+  };
+
+  return (
+    <>
+      {isDocumentEntitlementView && canAmendPolicy && (
+        <KeyDocCard>
+          <KeyDocCardContent
+            title={tt('constants.documentTypes.certificateOfCurrency.title')}
+            buttonLabel={tt('constants.documentTypes.certificateOfCurrency.button')}
+            siteTrackingName="certificate-of-currency"
+            onDocButtonClick={handleDocButtonClick}
+            showKeyDocLink={showDocLink}
+            enabled={enabled}
+            detailDescription={t('constants.documentTypes.certificateOfCurrency.description')}
+            dataTealeafUnmask={true}
+          />
+          {enabled ? (
+            <CertificateOfCurrencyForm
+              onCancel={handleCancel}
+              show={showForm}
+              setSubmittedState={setSubmittedStatusState}
+            />
+          ) : (
+            <div data-tealeaf-unmask>
+              <p className="pv-mt-2 pv-font-normal">
+                <Icon className="i-info-circle pv-mr-2" />
+                {tt('constants.documentTypes.certificateOfCurrency.disabledDescription')}
+              </p>
+              <NavigationButton
+                to={tt('constants.phoneNumbers.generalEnquiriesTelLink')}
+                variant="link"
+                className="pv-ml-6 pv-font-bold"
+                data-tracking-type="link"
+                data-tracking-name="call-us"
+              >
+                <div data-testid="phone-number">
+                  <PhoneNumber
+                    content="constants.documentTypes.callUsButton"
+                    pagename={PageName.POLICY_DETAILS}
+                  />
+                </div>
+              </NavigationButton>
+            </div>
+          )}
+        </KeyDocCard>
+      )}
+    </>
+  );
+};
+
+export default connectIagBrand()(CoCDocumentCard);
