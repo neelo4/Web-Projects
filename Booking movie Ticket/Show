@@ -5,7 +5,13 @@ import type React from 'react';
 import { type ReactNode, useContext, useState } from 'react';
 import { useBrandUtils } from '../../hooks/brand/useBrandUtils';
 import useBrowserDetect from '../../hooks/useBrowserDetect';
-import { ElementType, Interaction, PageName } from '../../models/SiteTracking';
+import {
+  ActionName,
+  ElementName,
+  ElementType,
+  Interaction,
+  PageName,
+} from '../../models/SiteTracking';
 import { SiteTrackingContext } from '../../sitetracking/SiteTrackingProvider';
 import NavigationLink from './NavigationLink';
 type ShowPhoneNumberProps = {
@@ -37,8 +43,8 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
       pageName: pageName || PageName.DASHBOARD,
       interaction: Interaction.CLICK,
       element: {
-        name: 'call-us',
-        value: 'show-number',
+        name: ElementName.CALL_US,
+        value: ActionName.SHOW_NUMBER,
         type: ElementType.LINK,
       },
     };
@@ -49,7 +55,7 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
       pageName: pageName || PageName.DASHBOARD,
       interaction: Interaction.CLICK,
       element: {
-        name: 'call-us',
+        name: ElementName.CALL_US,
         value: '1300-332-048',
         type: ElementType.LINK,
       },
@@ -89,8 +95,7 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
   if (isMobileApp) {
     return variant === 'buttonPrimary' ? (
       <Button variant="primary" onClick={handleNumberClick} className="pv-m-0">
-        <p> {prefix && <>{prefix} </>}</p>
-
+        {prefix && <p>{prefix}</p>}
         {unmaskedNumber}
       </Button>
     ) : (
@@ -112,7 +117,7 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
         onClick={isVisible ? handleNumberClick : handleShowNumber}
         className="pv-m-0 gap-1"
       >
-        {prefix && <>{prefix} </>}
+        {prefix && <span>{prefix}</span>}
         <span className="inline-flex items-center gap-1">
           {isVisible ? (
             <NavigationLink
@@ -144,14 +149,14 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
   // Desktop view with masking logic
   return (
     <span className="flex flex-wrap gap-1 self-center">
-      {prefix && <span>{getPrefixText()} </span>}
+      <p>{prefix && <span>{getPrefixText()} </span>}</p>
       {isVisible ? (
         <NavigationLink
           to={tt('pages.callUs.link')}
           onClick={handleNumberClick}
           newWindow={true}
           isInternalLink={true}
-          className="text-blue-600 underline self-center"
+          className="underline self-center"
         >
           {unmaskedNumber}
         </NavigationLink>
@@ -161,12 +166,12 @@ const ShowPhoneNumber: React.FC<ShowPhoneNumberProps & BrandDataProps> = ({
       {showLink && (
         <Link
           onClick={handleShowNumber}
-          className="text-blue-600 hover:text-blue-800 text-sm focus:outline-none no-underline self-center"
+          className="text-blue-600 text-sm focus:outline-none no-underline self-center"
         >
           {tt(`pages.callUs.showNumberText`)}{' '}
         </Link>
       )}
-      {suffix && <span>{getSuffixText()} </span>}
+      <p>{suffix && <span>{getSuffixText()} </span>}</p>
     </span>
   );
 };
