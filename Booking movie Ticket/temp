@@ -11,6 +11,11 @@ export interface MarkdownResourceKey {
     dataTealeafUnmaskContent?: boolean
 }
 
+interface CustomLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+    'data-phone'?: string
+    children: React.ReactNode
+}
+
 export const MarkdownWithResourceKey = ({
     markdownResourceKey,
     resourceParams,
@@ -30,10 +35,9 @@ export const MarkdownWithResourceKey = ({
     }
 
     const processPhoneNumber = (text: string) => {
-        // Regular expression to match the phone number pattern with display format
         const phonePattern = /\[\[(\{phoneNumberDisplay\})\]\]\(tel:\{phoneNumber\}\)/g
         
-        return text.replace(phonePattern, (match, display) => {
+        return text.replace(phonePattern, (match) => {
             const phoneNumber = resourceParams?.phoneNumber || ''
             const maskedNumber = resourceParams?.maskedPhoneNumber || ''
             const displayNumber = resourceParams?.phoneNumberDisplay || ''
@@ -68,12 +72,12 @@ export const MarkdownWithResourceKey = ({
         <>
             <Markdown
                 components={{
-                    a({ node, children, ...props }) {
-                        if (props.className === 'show-number-link') {
+                    a({ node, children, ...props }: CustomLinkProps) {
+                        if (props.className === 'show-number-link' && props['data-phone']) {
                             return (
                                 <a
                                     {...props}
-                                    onClick={(e) => handlePhoneNumberClick(props['data-phone'], e)}
+                                    onClick={(e) => handlePhoneNumberClick(props['data-phone'] as string, e)}
                                     {...getTeaLeafAttr(dataTealeafUnmaskContent)}
                                 >
                                     {children}
@@ -87,6 +91,7 @@ export const MarkdownWithResourceKey = ({
                             props.rel = 'noopener noreferrer'
                             if (anchorClass) props.className = anchorClass
                         }
+                        
                         if (props.title?.includes('data-tracking-name')) {
                             const dataTrackingName = props.title.replace(/data-tracking-name-/g, '')
                             const { title, ...restProps } = props
@@ -100,6 +105,7 @@ export const MarkdownWithResourceKey = ({
                                 </a>
                             )
                         }
+                        
                         return (
                             <a {...props} {...getTeaLeafAttr(dataTealeafUnmaskContent)}>
                                 {children}
