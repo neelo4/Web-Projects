@@ -1,3 +1,4 @@
+import React, { useState } from 'react'
 import Markdown from 'react-markdown'
 import { useTranslation } from 'react-i18next'
 import { getTeaLeafAttr } from '../../utils/tealeafUtils'
@@ -18,22 +19,76 @@ export const MarkdownWithResourceKey = ({
     dataTealeafUnmaskContent = false
 }: MarkdownResourceKey): JSX.Element => {
     const { t } = useTranslation()
+    const [unmaskedNumbers, setUnmaskedNumbers] = useState<Record<string, boolean>>({})
+
+    const handlePhoneNumberClick = (phoneNumber: string, e: React.MouseEvent) => {
+        e.preventDefault()
+        setUnmaskedNumbers(prev => ({
+            ...prev,
+            [phoneNumber]: true
+        }))
+    }
+
+    const processPhoneNumber = (text: string) => {
+        // Regular expression to match the phone number pattern with display format
+        const phonePattern = /\[\[(\{phoneNumberDisplay\})\]\]\(tel:\{phoneNumber\}\)/g
+        
+        return text.replace(phonePattern, (match, display) => {
+            const phoneNumber = resourceParams?.phoneNumber || ''
+            const maskedNumber = resourceParams?.maskedPhoneNumber || ''
+            const displayNumber = resourceParams?.phoneNumberDisplay || ''
+            
+            if (!phoneNumber || !maskedNumber || !displayNumber) {
+                return match
+            }
+
+            const isUnmasked = unmaskedNumbers[phoneNumber]
+
+            if (isUnmasked) {
+                return `<span class="phone-number">${displayNumber}</span>`
+            }
+
+            return `<span class="phone-number-container">
+                <span class="phone-number">${maskedNumber}</span>
+                <a 
+                    href="#"
+                    class="show-number-link"
+                    data-phone="${phoneNumber}"
+                >
+                    Show Number
+                </a>
+            </span>`
+        })
+    }
+
+    const markdownContent = t(markdownResourceKey, resourceParams ?? {})
+    const processedContent = processPhoneNumber(markdownContent)
+
     return (
         <>
             <Markdown
                 components={{
-                    // eslint-disable-next-line unused-imports/no-unused-vars-ts
                     a({ node, children, ...props }) {
+                        if (props.className === 'show-number-link') {
+                            return (
+                                <a
+                                    {...props}
+                                    onClick={(e) => handlePhoneNumberClick(props['data-phone'], e)}
+                                    {...getTeaLeafAttr(dataTealeafUnmaskContent)}
+                                >
+                                    {children}
+                                </a>
+                            )
+                        }
+
                         const url = new URL(props.href ?? '', location.href)
                         if (url.origin !== location.origin) {
                             props.target = '_blank'
                             props.rel = 'noopener noreferrer'
                             if (anchorClass) props.className = anchorClass
                         }
-
                         if (props.title?.includes('data-tracking-name')) {
                             const dataTrackingName = props.title.replace(/data-tracking-name-/g, '')
-                            // eslint-disable-next-line unused-imports/no-unused-vars-ts
                             const { title, ...restProps } = props
                             return (
                                 <a
@@ -45,14 +100,12 @@ export const MarkdownWithResourceKey = ({
                                 </a>
                             )
                         }
-
                         return (
                             <a {...props} {...getTeaLeafAttr(dataTealeafUnmaskContent)}>
                                 {children}
                             </a>
                         )
                     },
-                    // eslint-disable-next-line unused-imports/no-unused-vars-ts
                     p({ node, children, ...props }) {
                         return (
                             <p {...props} className={textClass} {...getTeaLeafAttr(dataTealeafUnmaskContent)}>
@@ -69,11 +122,41 @@ export const MarkdownWithResourceKey = ({
                     ),
                     li: ({ ...props }) => (
                         <li {...props} className="c-list__item" {...getTeaLeafAttr(dataTealeafUnmaskContent)} />
-                    )
+                    ),
+                    span: ({ node, ...props }) => {
+                        if (props.className === 'phone-number-container') {
+                            return (
+                                <span className="phone-number-container">
+                                    {props.children}
+                                </span>
+                            )
+                        }
+                        return <span {...props} />
+                    }
                 }}
             >
-                {t(markdownResourceKey, resourceParams ?? {})}
+                {processedContent}
             </Markdown>
+
+            <style jsx>{`
+                .phone-number-container {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+                .show-number-link {
+                    color: #0066cc;
+                    text-decoration: none;
+                }
+                .show-number-link:hover {
+                    text-decoration: underline;
+                }
+                .phone-number {
+                    font-family: monospace;
+                }
+            `}</style>
         </>
     )
 }
+
+export default MarkdownWithResourceKey
