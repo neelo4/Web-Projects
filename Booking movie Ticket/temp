@@ -1,168 +1,134 @@
 import React, { useState } from 'react'
-import Markdown from 'react-markdown'
 import { useTranslation } from 'react-i18next'
-import { getTeaLeafAttr } from '../../utils/tealeafUtils'
+import { Link } from '@iag-packages/chroma-react/lib/components'
+import ApiClient from '../ApiClient'
+import { t, tExists } from '../../utils/i18nextUtil'
+import { Country } from '../../models/brand'
+import { CHANGE_LIST_MAPPING as AUS_CHANGE_LIST_MAPPING } from '../constants'
+import { CHANGE_LIST_MAPPING as NZL_CHANGE_LIST_MAPPING } from '../constants/nzl'
 
-export interface MarkdownResourceKey {
-    markdownResourceKey: string
-    resourceParams?: Record<string, any>
-    anchorClass?: string
-    textClass?: string
-    dataTealeafUnmaskContent?: boolean
-}
+import {
+    embargoValidationExclusionRuleIds as AUSEmbargoExclusionRules,
+    embargoValidationReferralRuleIds as AUSEmbargoReferralRules,
+    embargoValidationRefusalRuleIds as AUSEmbargoRefusalRules
+} from '../constants/embargo'
+import {
+    embargoValidationExclusionRuleIds as NZLEmbargoExclusionRules,
+    embargoValidationReferralRuleIds as NZLEmbargoReferralRules,
+    embargoValidationRefusalRuleIds as NZLEmbargoRefusalRules
+} from '../constants/nzl/embargo'
 
-interface CustomLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
-    'data-phone'?: string
-    children: React.ReactNode
-}
+import { getVehicleValidationErrorDetails as getNZLVehicleValidationErrorDetails } from '../constants/nzl/validationRule'
+import { getVehicleValidationErrorDetails as getAUSVehicleValidationErrorDetails } from '../constants/validationRule'
+import { MarkdownWithResourceKey } from './MarkdownWithResourceKey'
+import { ProductType } from '../../store/types'
 
-export const MarkdownWithResourceKey = ({
-    markdownResourceKey,
-    resourceParams,
-    anchorClass,
-    textClass,
-    dataTealeafUnmaskContent = false
-}: MarkdownResourceKey): JSX.Element => {
+export const ContactUsLink = (linkLabel?: string): JSX.Element => {
     const { t } = useTranslation()
-    const [unmaskedNumbers, setUnmaskedNumbers] = useState<Record<string, boolean>>({})
-
-    const handlePhoneNumberClick = (phoneNumber: string, e: React.MouseEvent) => {
-        e.preventDefault()
-        setUnmaskedNumbers(prev => ({
-            ...prev,
-            [phoneNumber]: true
-        }))
-    }
-
-    const processPhoneNumber = (text: string) => {
-        const phonePattern = /\[\[(\{phoneNumberDisplay\})\]\]\(tel:\{phoneNumber\}\)/g
-        
-        return text.replace(phonePattern, (match) => {
-            const phoneNumber = resourceParams?.phoneNumber || ''
-            const maskedNumber = resourceParams?.maskedPhoneNumber || ''
-            const displayNumber = resourceParams?.phoneNumberDisplay || ''
-            
-            if (!phoneNumber || !maskedNumber || !displayNumber) {
-                return match
-            }
-
-            const isUnmasked = unmaskedNumbers[phoneNumber]
-
-            if (isUnmasked) {
-                return `<span class="phone-number">${displayNumber}</span>`
-            }
-
-            return `<span class="phone-number-container">
-                <span class="phone-number">${maskedNumber}</span>
-                <a 
-                    href="#"
-                    class="show-number-link"
-                    data-phone="${phoneNumber}"
-                >
-                    Show Number
-                </a>
-            </span>`
-        })
-    }
-
-    const markdownContent = t(markdownResourceKey, resourceParams ?? {})
-    const processedContent = processPhoneNumber(markdownContent)
-
     return (
-        <>
-            <Markdown
-                components={{
-                    a({ node, children, ...props }: CustomLinkProps) {
-                        if (props.className === 'show-number-link' && props['data-phone']) {
-                            return (
-                                <a
-                                    {...props}
-                                    onClick={(e) => handlePhoneNumberClick(props['data-phone'] as string, e)}
-                                    {...getTeaLeafAttr(dataTealeafUnmaskContent)}
-                                >
-                                    {children}
-                                </a>
-                            )
-                        }
-
-                        const url = new URL(props.href ?? '', location.href)
-                        if (url.origin !== location.origin) {
-                            props.target = '_blank'
-                            props.rel = 'noopener noreferrer'
-                            if (anchorClass) props.className = anchorClass
-                        }
-                        
-                        if (props.title?.includes('data-tracking-name')) {
-                            const dataTrackingName = props.title.replace(/data-tracking-name-/g, '')
-                            const { title, ...restProps } = props
-                            return (
-                                <a
-                                    {...restProps}
-                                    data-tracking-name={dataTrackingName}
-                                    {...getTeaLeafAttr(dataTealeafUnmaskContent)}
-                                >
-                                    {children}
-                                </a>
-                            )
-                        }
-                        
-                        return (
-                            <a {...props} {...getTeaLeafAttr(dataTealeafUnmaskContent)}>
-                                {children}
-                            </a>
-                        )
-                    },
-                    p({ node, children, ...props }) {
-                        return (
-                            <p {...props} className={textClass} {...getTeaLeafAttr(dataTealeafUnmaskContent)}>
-                                {children}
-                            </p>
-                        )
-                    },
-                    ul: ({ ...props }) => (
-                        <ul
-                            {...props}
-                            className="c-c-list c-list--bullet"
-                            {...getTeaLeafAttr(dataTealeafUnmaskContent)}
-                        />
-                    ),
-                    li: ({ ...props }) => (
-                        <li {...props} className="c-list__item" {...getTeaLeafAttr(dataTealeafUnmaskContent)} />
-                    ),
-                    span: ({ node, ...props }) => {
-                        if (props.className === 'phone-number-container') {
-                            return (
-                                <span className="phone-number-container">
-                                    {props.children}
-                                </span>
-                            )
-                        }
-                        return <span {...props} />
-                    }
-                }}
-            >
-                {processedContent}
-            </Markdown>
-
-            <style jsx>{`
-                .phone-number-container {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                }
-                .show-number-link {
-                    color: #0066cc;
-                    text-decoration: none;
-                }
-                .show-number-link:hover {
-                    text-decoration: underline;
-                }
-                .phone-number {
-                    font-family: monospace;
-                }
-            `}</style>
-        </>
+        <Link data-tracking-name="contact-us" href={t('constants.urls.contactUs')} target="_blank">
+            {linkLabel || 'website '}
+        </Link>
     )
 }
 
-export default MarkdownWithResourceKey
+const PhoneLink: React.FC<{ isButton?: boolean }> = ({ isButton = false }) => {
+    const { t } = useTranslation()
+    const brand = ApiClient.getBrand()
+    const [isVisible, setIsVisible] = useState(false)
+    const [showLink, setShowLink] = useState(true)
+    const trackingSuffix = isButton ? '-button' : ''
+    const linkProps = {
+        'data-tracking-name': `${brand.toLowerCase()}-telephone${trackingSuffix}`,
+        href: `tel:${t('constants.phoneNumber')}`,
+        ...(isButton && { button: 'primary' })
+    }
+    const handleShowNumber = (e: React.MouseEvent) => {
+        e.preventDefault()
+        setIsVisible(true)
+        setShowLink(false)
+    }
+
+    return (
+        <Link {...linkProps}>
+            {isButton ? 'Call ' : ''}
+            <span className="inline-flex items-center gap-1 no-underline">
+                {tExists('constants.showNumber') ? (
+                    <>
+                        {isVisible ? t('constants.phoneNumberDisplay') : t('constants.maskedPhoneNumber')}
+                        {showLink && (
+                            <Link
+                                onClick={handleShowNumber}
+                                className={`${
+                                    isButton ? 'text-white' : 'text-blue-600'
+                                } hover:text-blue-800 text-sm focus:outline-none`}
+                            >
+                                {t('constants.showNumber')}
+                            </Link>
+                        )}
+                    </>
+                ) : (
+                    // If showNumber doesn't exist, just display the phone number without masking
+                    t('constants.phoneNumberDisplay')
+                )}
+            </span>
+        </Link>
+    )
+}
+
+// This component exists so:
+// 1. We can use t() from useTranslation(), which will only provide t() once i18next inits and strings are avail
+// 2. We don't have change every implementation from {workingHours} to {workingHours()}
+const WorkingHours: React.FC = () => {
+    const { t } = useTranslation()
+    return <>{t('constants.workingHoursString')}</>
+}
+
+// Components with brand-string content
+export const workingHours = <WorkingHours />
+export const telephoneLink = <PhoneLink />
+export const telephoneButtonLink = <PhoneLink isButton />
+
+// Country-based rules and mapping
+const country = ApiClient.getCountry()
+export const CHANGE_LIST_MAPPING = country === Country.AUS ? AUS_CHANGE_LIST_MAPPING : NZL_CHANGE_LIST_MAPPING
+export const embargoReferralRules = country === Country.AUS ? AUSEmbargoReferralRules : NZLEmbargoReferralRules
+export const embargoRefusalRules = country === Country.AUS ? AUSEmbargoRefusalRules : NZLEmbargoRefusalRules
+export const embargoExclusionRules = country === Country.AUS ? AUSEmbargoExclusionRules : NZLEmbargoExclusionRules
+export const getVehicleValidationErrorDetails =
+    country === Country.AUS ? getAUSVehicleValidationErrorDetails : getNZLVehicleValidationErrorDetails
+
+// Helpers for brand strings that are mostly consumed in awkward places (like mapStateToProps functions)
+export const policyBookletPdsUrl = (productType: ProductType): string =>
+    tExists(`constants.urls.documents.policyBookletPds.${productType}`)
+        ? t(`constants.urls.documents.policyBookletPds.${productType}`)
+        : t('constants.urls.documents.policyBookletPds.default')
+export const policyBookletPedUrl = (productType: ProductType): string =>
+    tExists(`constants.urls.documents.policyBookletPed.${productType}`)
+        ? t(`constants.urls.documents.policyBookletPed.${productType}`)
+        : t('constants.urls.documents.policyBookletPed.default')
+export const financedLabel = (): string => t('financing.financedLabel')
+export const financedTitle = (): string => t('financing.financedTitle')
+
+// Technical Error content
+// TODO: default error content will eventally live (or be referenced here) when we fully externalise config and content
+export const TechnicalErrorTitle = (): JSX.Element => <>{t('technicalError.title')}</>
+
+export const TechnicalErrorMessage = (): JSX.Element => {
+    const brand = ApiClient.getBrand()
+    const resourceParams = {
+        brand: brand.toLowerCase(),
+        phoneNumber: t('constants.phoneNumber'),
+        phoneNumberDisplay: t('constants.phoneNumberDisplay'),
+        workingHoursString: t('constants.workingHoursString'),
+        contactUs: t('constants.urls.contactUs')
+    }
+    return (
+        <div className="technical-error-message">
+            <MarkdownWithResourceKey
+                markdownResourceKey="technicalError.message.markdown"
+                resourceParams={resourceParams}
+            />
+        </div>
+    )
+}
