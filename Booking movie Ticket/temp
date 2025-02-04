@@ -24,26 +24,6 @@ import { getVehicleValidationErrorDetails as getAUSVehicleValidationErrorDetails
 import { MarkdownWithResourceKey } from './MarkdownWithResourceKey'
 import { ProductType } from '../../store/types'
 
-// Shared handler for showing number with analytics
-const handleShowNumber = (
-    setIsVisible: React.Dispatch<React.SetStateAction<boolean>>,
-    setShowLink: React.Dispatch<React.SetStateAction<boolean>>,
-    event?: React.MouseEvent
-) => {
-    event?.preventDefault()
-    setIsVisible(true)
-    setShowLink(false)
-    
-    trackingEventContext?.dispatch({
-        interaction: Interaction.CLICK,
-        element: {
-            name: ElementName.CALLUS,
-            value: ActionName.SHOW_NUMBER,
-            type: ElementType.LINK
-        }
-    })
-}
-
 export const ContactUsLink = (linkLabel?: string): JSX.Element => {
     const { t } = useTranslation()
     return (
@@ -76,6 +56,21 @@ const PhoneLink: React.FC<{ isButton?: boolean }> = ({ isButton = false }) => {
         }
     }
 
+    const handleShowNumber = (e: React.MouseEvent) => {
+        e.preventDefault()
+        setIsVisible(true)
+        setShowLink(false)
+        
+        trackingEventContext?.dispatch({
+            interaction: Interaction.CLICK,
+            element: {
+                name: ElementName.CALLUS,
+                value: ActionName.SHOW_NUMBER,
+                type: ElementType.LINK
+            }
+        })
+    }
+
     return (
         <Link {...linkProps}>
             {isButton ? 'Call ' : ''}
@@ -85,7 +80,7 @@ const PhoneLink: React.FC<{ isButton?: boolean }> = ({ isButton = false }) => {
                         {isVisible ? t('constants.phoneNumberDisplay') : t('constants.maskedPhoneNumber')}
                         {showLink && (
                             <Link
-                                onClick={(e) => handleShowNumber(setIsVisible, setShowLink, e)}
+                                onClick={handleShowNumber}
                                 className={`${
                                     isButton ? 'text-white' : 'text-blue-600'
                                 } hover:text-blue-800 text-sm focus:outline-none`}
@@ -147,6 +142,20 @@ export const TechnicalErrorMessage = (): JSX.Element => {
     const [isVisible, setIsVisible] = useState(false)
     const [showLink, setShowLink] = useState(true)
 
+    const handleShowNumber = () => {
+        setIsVisible(true)
+        setShowLink(false)
+        
+        trackingEventContext?.dispatch({
+            interaction: Interaction.CLICK,
+            element: {
+                name: ElementName.CALLUS,
+                value: ActionName.SHOW_NUMBER,
+                type: ElementType.LINK
+            }
+        })
+    }
+
     const resourceParams = {
         brand: brand.toLowerCase(),
         phoneNumber: t('constants.phoneNumber'),
@@ -155,7 +164,7 @@ export const TechnicalErrorMessage = (): JSX.Element => {
         showNumber: t('constants.showNumber'),
         isVisible,
         showLink,
-        handleShowNumber: () => handleShowNumber(setIsVisible, setShowLink),
+        handleShowNumber,
         clickedNumberEvent: () => {
             trackingEventContext?.dispatch({
                 interaction: Interaction.CLICK,
