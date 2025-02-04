@@ -24,6 +24,31 @@ import { getVehicleValidationErrorDetails as getAUSVehicleValidationErrorDetails
 import { MarkdownWithResourceKey } from './MarkdownWithResourceKey'
 import { ProductType } from '../../store/types'
 
+// Shared tracking event handlers
+const revealNumberEvent = () => {
+    const revealNumber = {
+        interaction: Interaction.CLICK,
+        element: {
+            name: ElementName.CALLUS,
+            value: ActionName.SHOW_NUMBER,
+            type: ElementType.LINK
+        }
+    }
+    trackingEventContext?.dispatch(revealNumber)
+}
+
+const clickedNumberEvent = () => {
+    const clickedNumber = {
+        interaction: Interaction.CLICK,
+        element: {
+            name: ElementName.CALLUS,
+            value: t('constants.phoneNumberDisplay').replaceAll(' ', '-'),
+            type: ElementType.LINK
+        }
+    }
+    trackingEventContext?.dispatch(clickedNumber)
+}
+
 export const ContactUsLink = (linkLabel?: string): JSX.Element => {
     const { t } = useTranslation()
     return (
@@ -39,30 +64,6 @@ const PhoneLink: React.FC<{ isButton?: boolean }> = ({ isButton = false }) => {
     const [isVisible, setIsVisible] = useState(false)
     const [showLink, setShowLink] = useState(true)
     const trackingSuffix = isButton ? '-button' : ''
-
-    const revealNumberEvent = () => {
-        const revealNumber = {
-            interaction: Interaction.CLICK,
-            element: {
-                name: ElementName.CALLUS,
-                value: ActionName.SHOW_NUMBER,
-                type: ElementType.LINK
-            }
-        }
-        trackingEventContext?.dispatch(revealNumber)
-    }
-
-    const clickedNumberEvent = () => {
-        const clickedNumber = {
-            interaction: Interaction.CLICK,
-            element: {
-                name: ElementName.CALLUS,
-                value: t('constants.phoneNumberDisplay').replaceAll(' ', '-'),
-                type: ElementType.LINK
-            }
-        }
-        trackingEventContext?.dispatch(clickedNumber)
-    }
 
     const linkProps = {
         'data-tracking-name': `${brand.toLowerCase()}-telephone${trackingSuffix}`,
@@ -144,14 +145,31 @@ export const financedTitle = (): string => t('financing.financedTitle')
 export const TechnicalErrorTitle = (): JSX.Element => <>{t('technicalError.title')}</>
 
 export const TechnicalErrorMessage = (): JSX.Element => {
+    const { t } = useTranslation()
     const brand = ApiClient.getBrand()
+    const [isVisible, setIsVisible] = useState(false)
+    const [showLink, setShowLink] = useState(true)
+
+    const handleShowNumber = () => {
+        setIsVisible(true)
+        setShowLink(false)
+        revealNumberEvent()
+    }
+
     const resourceParams = {
         brand: brand.toLowerCase(),
         phoneNumber: t('constants.phoneNumber'),
         phoneNumberDisplay: t('constants.phoneNumberDisplay'),
+        maskedPhoneNumber: t('constants.maskedPhoneNumber'),
+        showNumber: t('constants.showNumber'),
+        isVisible,
+        showLink,
+        handleShowNumber,
+        clickedNumberEvent,
         workingHoursString: t('constants.workingHoursString'),
         contactUs: t('constants.urls.contactUs')
     }
+    
     return (
         <div className="technical-error-message">
             <MarkdownWithResourceKey
