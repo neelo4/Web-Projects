@@ -1,31 +1,8 @@
-import React, { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Link } from '@iag-packages/chroma-react/lib/components'
-import ApiClient from '../ApiClient'
-import { t, tExists } from '../../utils/i18nextUtil'
-import { Country } from '../../models/brand'
-import { CHANGE_LIST_MAPPING as AUS_CHANGE_LIST_MAPPING } from '../constants'
-import { CHANGE_LIST_MAPPING as NZL_CHANGE_LIST_MAPPING } from '../constants/nzl'
+// trackingUtils.ts
 import { ElementName, ElementType, ActionName, Interaction } from './types'
+import { t } from '../../utils/i18nextUtil'
 
-import {
-    embargoValidationExclusionRuleIds as AUSEmbargoExclusionRules,
-    embargoValidationReferralRuleIds as AUSEmbargoReferralRules,
-    embargoValidationRefusalRuleIds as AUSEmbargoRefusalRules
-} from '../constants/embargo'
-import {
-    embargoValidationExclusionRuleIds as NZLEmbargoExclusionRules,
-    embargoValidationReferralRuleIds as NZLEmbargoReferralRules,
-    embargoValidationRefusalRuleIds as NZLEmbargoRefusalRules
-} from '../constants/nzl/embargo'
-
-import { getVehicleValidationErrorDetails as getNZLVehicleValidationErrorDetails } from '../constants/nzl/validationRule'
-import { getVehicleValidationErrorDetails as getAUSVehicleValidationErrorDetails } from '../constants/validationRule'
-import { MarkdownWithResourceKey } from './MarkdownWithResourceKey'
-import { ProductType } from '../../store/types'
-
-// Shared tracking event handlers
-const revealNumberEvent = () => {
+export const revealNumberEvent = () => {
     const revealNumber = {
         interaction: Interaction.CLICK,
         element: {
@@ -37,7 +14,7 @@ const revealNumberEvent = () => {
     trackingEventContext?.dispatch(revealNumber)
 }
 
-const clickedNumberEvent = () => {
+export const clickedNumberEvent = () => {
     const clickedNumber = {
         interaction: Interaction.CLICK,
         element: {
@@ -47,135 +24,4 @@ const clickedNumberEvent = () => {
         }
     }
     trackingEventContext?.dispatch(clickedNumber)
-}
-
-export const ContactUsLink = (linkLabel?: string): JSX.Element => {
-    const { t } = useTranslation()
-    return (
-        <Link data-tracking-name="contact-us" href={t('constants.urls.contactUs')} target="_blank">
-            {linkLabel || 'website '}
-        </Link>
-    )
-}
-
-const PhoneLink: React.FC<{ isButton?: boolean }> = ({ isButton = false }) => {
-    const { t } = useTranslation()
-    const brand = ApiClient.getBrand()
-    const [isVisible, setIsVisible] = useState(false)
-    const [showLink, setShowLink] = useState(true)
-    const trackingSuffix = isButton ? '-button' : ''
-
-    const linkProps = {
-        'data-tracking-name': `${brand.toLowerCase()}-telephone${trackingSuffix}`,
-        href: `tel:${t('constants.phoneNumber')}`,
-        ...(isButton && { button: 'primary' }),
-        onClick: clickedNumberEvent
-    }
-
-    const handleShowNumber = (e: React.MouseEvent) => {
-        e.preventDefault()
-        setIsVisible(true)
-        setShowLink(false)
-        revealNumberEvent()
-    }
-
-    return (
-        <Link {...linkProps}>
-            {isButton ? 'Call ' : ''}
-            <span className="inline-flex items-center gap-1 no-underline">
-                {tExists('constants.showNumber') ? (
-                    <>
-                        {isVisible ? t('constants.phoneNumberDisplay') : t('constants.maskedPhoneNumber')}
-                        {showLink && (
-                            <Link
-                                onClick={handleShowNumber}
-                                className={`${
-                                    isButton ? 'text-white' : 'text-blue-600'
-                                } hover:text-blue-800 text-sm focus:outline-none`}
-                            >
-                                {t('constants.showNumber')}
-                            </Link>
-                        )}
-                    </>
-                ) : (
-                    // If showNumber doesn't exist, just display the phone number without masking
-                    t('constants.phoneNumberDisplay')
-                )}
-            </span>
-        </Link>
-    )
-}
-
-// This component exists so:
-// 1. We can use t() from useTranslation(), which will only provide t() once i18next inits and strings are avail
-// 2. We don't have change every implementation from {workingHours} to {workingHours()}
-const WorkingHours: React.FC = () => {
-    const { t } = useTranslation()
-    return <>{t('constants.workingHoursString')}</>
-}
-
-// Components with brand-string content
-export const workingHours = <WorkingHours />
-export const telephoneLink = <PhoneLink />
-export const telephoneButtonLink = <PhoneLink isButton />
-
-// Country-based rules and mapping
-const country = ApiClient.getCountry()
-export const CHANGE_LIST_MAPPING = country === Country.AUS ? AUS_CHANGE_LIST_MAPPING : NZL_CHANGE_LIST_MAPPING
-export const embargoReferralRules = country === Country.AUS ? AUSEmbargoReferralRules : NZLEmbargoReferralRules
-export const embargoRefusalRules = country === Country.AUS ? AUSEmbargoRefusalRules : NZLEmbargoRefusalRules
-export const embargoExclusionRules = country === Country.AUS ? AUSEmbargoExclusionRules : NZLEmbargoExclusionRules
-export const getVehicleValidationErrorDetails =
-    country === Country.AUS ? getAUSVehicleValidationErrorDetails : getNZLVehicleValidationErrorDetails
-
-// Helpers for brand strings that are mostly consumed in awkward places (like mapStateToProps functions)
-export const policyBookletPdsUrl = (productType: ProductType): string =>
-    tExists(`constants.urls.documents.policyBookletPds.${productType}`)
-        ? t(`constants.urls.documents.policyBookletPds.${productType}`)
-        : t('constants.urls.documents.policyBookletPds.default')
-export const policyBookletPedUrl = (productType: ProductType): string =>
-    tExists(`constants.urls.documents.policyBookletPed.${productType}`)
-        ? t(`constants.urls.documents.policyBookletPed.${productType}`)
-        : t('constants.urls.documents.policyBookletPed.default')
-export const financedLabel = (): string => t('financing.financedLabel')
-export const financedTitle = (): string => t('financing.financedTitle')
-
-// Technical Error content
-// TODO: default error content will eventally live (or be referenced here) when we fully externalise config and content
-export const TechnicalErrorTitle = (): JSX.Element => <>{t('technicalError.title')}</>
-
-export const TechnicalErrorMessage = (): JSX.Element => {
-    const { t } = useTranslation()
-    const brand = ApiClient.getBrand()
-    const [isVisible, setIsVisible] = useState(false)
-    const [showLink, setShowLink] = useState(true)
-
-    const handleShowNumber = () => {
-        setIsVisible(true)
-        setShowLink(false)
-        revealNumberEvent()
-    }
-
-    const resourceParams = {
-        brand: brand.toLowerCase(),
-        phoneNumber: t('constants.phoneNumber'),
-        phoneNumberDisplay: t('constants.phoneNumberDisplay'),
-        maskedPhoneNumber: t('constants.maskedPhoneNumber'),
-        showNumber: t('constants.showNumber'),
-        isVisible,
-        showLink,
-        handleShowNumber,
-        clickedNumberEvent,
-        workingHoursString: t('constants.workingHoursString'),
-        contactUs: t('constants.urls.contactUs')
-    }
-    
-    return (
-        <div className="technical-error-message">
-            <MarkdownWithResourceKey
-                markdownResourceKey="technicalError.message.markdown"
-                resourceParams={resourceParams}
-            />
-        </div>
-    )
 }
