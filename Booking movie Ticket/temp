@@ -6,6 +6,7 @@ import { t, tExists } from '../../utils/i18nextUtil'
 import { Country } from '../../models/brand'
 import { CHANGE_LIST_MAPPING as AUS_CHANGE_LIST_MAPPING } from '../constants'
 import { CHANGE_LIST_MAPPING as NZL_CHANGE_LIST_MAPPING } from '../constants/nzl'
+import { ElementName, ElementType, ActionName, Interaction } from './types'
 
 import {
     embargoValidationExclusionRuleIds as AUSEmbargoExclusionRules,
@@ -38,15 +39,43 @@ const PhoneLink: React.FC<{ isButton?: boolean }> = ({ isButton = false }) => {
     const [isVisible, setIsVisible] = useState(false)
     const [showLink, setShowLink] = useState(true)
     const trackingSuffix = isButton ? '-button' : ''
+
+    const revealNumberEvent = () => {
+        const revealNumber = {
+            interaction: Interaction.CLICK,
+            element: {
+                name: ElementName.CALLUS,
+                value: ActionName.SHOW_NUMBER,
+                type: ElementType.LINK
+            }
+        }
+        trackingEventContext?.dispatch(revealNumber)
+    }
+
+    const clickedNumberEvent = () => {
+        const clickedNumber = {
+            interaction: Interaction.CLICK,
+            element: {
+                name: ElementName.CALLUS,
+                value: t('constants.phoneNumberDisplay').replaceAll(' ', '-'),
+                type: ElementType.LINK
+            }
+        }
+        trackingEventContext?.dispatch(clickedNumber)
+    }
+
     const linkProps = {
         'data-tracking-name': `${brand.toLowerCase()}-telephone${trackingSuffix}`,
         href: `tel:${t('constants.phoneNumber')}`,
-        ...(isButton && { button: 'primary' })
+        ...(isButton && { button: 'primary' }),
+        onClick: clickedNumberEvent
     }
+
     const handleShowNumber = (e: React.MouseEvent) => {
         e.preventDefault()
         setIsVisible(true)
         setShowLink(false)
+        revealNumberEvent()
     }
 
     return (
