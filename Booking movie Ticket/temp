@@ -1,25 +1,79 @@
-return (
-  <Link {...linkProps}>
-    {isButton ? 'Call ' : ''}
-    <span className="inline-flex items-center gap-1 no-underline">
-      {tExists('constants.showNumber') ? (
+import Markdown from 'react-markdown'
+import { useTranslation } from 'react-i18next'
+import { getTeaLeafAttr } from '../../utils/tealeafUtils'
+
+export interface MarkdownResourceKey {
+    markdownResourceKey: string
+    resourceParams?: Record<string, any>
+    anchorClass?: string
+    textClass?: string
+    dataTealeafUnmaskContent?: boolean
+}
+
+export const MarkdownWithResourceKey = ({
+    markdownResourceKey,
+    resourceParams,
+    anchorClass,
+    textClass,
+    dataTealeafUnmaskContent = false
+}: MarkdownResourceKey): JSX.Element => {
+    const { t } = useTranslation()
+    return (
         <>
-          {isVisible ? t('constants.phoneNumberDisplay') : t('constants.maskedPhoneNumber')}
-          {showLink && (
-            <Link
-              onClick={handleShowNumber}
-              className={`${
-                isButton ? 'text-white' : 'text-blue-600'
-              } hover:text-blue-800 text-sm focus:outline-none`}
+            <Markdown
+                components={{
+                    // eslint-disable-next-line unused-imports/no-unused-vars-ts
+                    a({ node, children, ...props }) {
+                        const url = new URL(props.href ?? '', location.href)
+                        if (url.origin !== location.origin) {
+                            props.target = '_blank'
+                            props.rel = 'noopener noreferrer'
+                            if (anchorClass) props.className = anchorClass
+                        }
+
+                        if (props.title?.includes('data-tracking-name')) {
+                            const dataTrackingName = props.title.replace(/data-tracking-name-/g, '')
+                            // eslint-disable-next-line unused-imports/no-unused-vars-ts
+                            const { title, ...restProps } = props
+                            return (
+                                <a
+                                    {...restProps}
+                                    data-tracking-name={dataTrackingName}
+                                    {...getTeaLeafAttr(dataTealeafUnmaskContent)}
+                                >
+                                    {children}
+                                </a>
+                            )
+                        }
+
+                        return (
+                            <a {...props} {...getTeaLeafAttr(dataTealeafUnmaskContent)}>
+                                {children}
+                            </a>
+                        )
+                    },
+                    // eslint-disable-next-line unused-imports/no-unused-vars-ts
+                    p({ node, children, ...props }) {
+                        return (
+                            <p {...props} className={textClass} {...getTeaLeafAttr(dataTealeafUnmaskContent)}>
+                                {children}
+                            </p>
+                        )
+                    },
+                    ul: ({ ...props }) => (
+                        <ul
+                            {...props}
+                            className="c-c-list c-list--bullet"
+                            {...getTeaLeafAttr(dataTealeafUnmaskContent)}
+                        />
+                    ),
+                    li: ({ ...props }) => (
+                        <li {...props} className="c-list__item" {...getTeaLeafAttr(dataTealeafUnmaskContent)} />
+                    )
+                }}
             >
-              {t('constants.showNumber')}
-            </Link>
-          )}
+                {t(markdownResourceKey, resourceParams ?? {})}
+            </Markdown>
         </>
-      ) : (
-        // If showNumber doesn't exist, just display the phone number without masking
-        t('constants.phoneNumberDisplay')
-      )}
-    </span>
-  </Link>
-);
+    )
+}
