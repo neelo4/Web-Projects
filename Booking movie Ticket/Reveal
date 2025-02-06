@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useContext, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from '@iag-packages/chroma-react/lib/components'
 import ApiClient from '../ApiClient'
@@ -6,7 +6,6 @@ import { t, tExists } from '../../utils/i18nextUtil'
 import { Country } from '../../models/brand'
 import { CHANGE_LIST_MAPPING as AUS_CHANGE_LIST_MAPPING } from '../constants'
 import { CHANGE_LIST_MAPPING as NZL_CHANGE_LIST_MAPPING } from '../constants/nzl'
-import { revealNumberEvent, clickedNumberEvent } from './trackingUtils'
 
 import {
     embargoValidationExclusionRuleIds as AUSEmbargoExclusionRules,
@@ -23,6 +22,8 @@ import { getVehicleValidationErrorDetails as getNZLVehicleValidationErrorDetails
 import { getVehicleValidationErrorDetails as getAUSVehicleValidationErrorDetails } from '../constants/validationRule'
 import { MarkdownWithResourceKey } from './MarkdownWithResourceKey'
 import { ProductType } from '../../store/types'
+import { AnalyticsContext } from '../analytics/TrackingEventContext'
+import { Interaction, ElementName, ElementType, ActionName } from '../../store/enums'
 
 export const ContactUsLink = (linkLabel?: string): JSX.Element => {
     const { t } = useTranslation()
@@ -35,23 +36,41 @@ export const ContactUsLink = (linkLabel?: string): JSX.Element => {
 
 const PhoneLink: React.FC<{ isButton?: boolean }> = ({ isButton = false }) => {
     const { t } = useTranslation()
-    const brand = ApiClient.getBrand()
+    const { trackingEventContext } = useContext(AnalyticsContext)
+    // const brand = ApiClient.getBrand()
     const [isVisible, setIsVisible] = useState(false)
     const [showLink, setShowLink] = useState(true)
-    const trackingSuffix = isButton ? '-button' : ''
+    // const trackingSuffix = isButton ? '-button' : ''
 
     const linkProps = {
-        'data-tracking-name': `${brand.toLowerCase()}-telephone${trackingSuffix}`,
+        // 'data-tracking-name': `${brand.toLowerCase()}-telephone${trackingSuffix}`,
         href: `tel:${t('constants.phoneNumber')}`,
         ...(isButton && { button: 'primary' }),
-        onClick: clickedNumberEvent
+        onClick: () => {
+            trackingEventContext?.dispatch({
+                interaction: Interaction.CLICK,
+                element: {
+                    value: t('constants.phoneNumberDisplay').replaceAll(' ', '-'),
+                    name: ElementName.CALL_US,
+                    type: ElementType.LINK
+                }
+            })
+        }
     }
 
     const handleShowNumber = (e: React.MouseEvent) => {
         e.preventDefault()
         setIsVisible(true)
         setShowLink(false)
-        revealNumberEvent()
+
+        trackingEventContext?.dispatch({
+            interaction: Interaction.CLICK,
+            element: {
+                name: ElementName.CALL_US,
+                value: ActionName.SHOW_NUMBER,
+                type: ElementType.LINK
+            }
+        })
     }
 
     return (
@@ -121,30 +140,19 @@ export const TechnicalErrorTitle = (): JSX.Element => <>{t('technicalError.title
 
 export const TechnicalErrorMessage = (): JSX.Element => {
     const { t } = useTranslation()
-    const brand = ApiClient.getBrand()
-    const [isVisible, setIsVisible] = useState(false)
-    const [showLink, setShowLink] = useState(true)
 
-    const handleShowNumber = () => {
-        setIsVisible(true)
-        setShowLink(false)
-        revealNumberEvent()
-    }
+    const brand = ApiClient.getBrand()
 
     const resourceParams = {
         brand: brand.toLowerCase(),
         phoneNumber: t('constants.phoneNumber'),
         phoneNumberDisplay: t('constants.phoneNumberDisplay'),
         maskedPhoneNumber: t('constants.maskedPhoneNumber'),
-        showNumber: t('constants.showNumber'),
-        isVisible,
-        showLink,
-        handleShowNumber,
-        clickedNumberEvent,
+
         workingHoursString: t('constants.workingHoursString'),
         contactUs: t('constants.urls.contactUs')
     }
-    
+
     return (
         <div className="technical-error-message">
             <MarkdownWithResourceKey
