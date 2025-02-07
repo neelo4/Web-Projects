@@ -1,86 +1,89 @@
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from '@iag-packages/chroma-react/lib/components';
-import { AnalyticsContext } from '../analytics/TrackingEventContext';
-import { Interaction, ElementName, ElementType, ActionName } from '../../store/enums';
-import { tExists } from '../../utils/i18nextUtil';
 
 interface PhoneLinkProps {
-    isButton?: boolean;
+  className?: string;
+  showMaskToggle?: boolean;
+  initialMasked?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
+  trackingData?: {
+    pageName?: string;
+    interaction?: string;
+    elementName?: string;
+    actionName?: string;
+    elementType?: string;
+  };
 }
 
-const PhoneLink: React.FC<PhoneLinkProps> = ({ isButton = false }) => {
-    const { t } = useTranslation();
-    const { trackingEventContext } = useContext(AnalyticsContext);
-    const [isVisible, setIsVisible] = useState(false);
+const PhoneLink: React.FC<PhoneLinkProps> = ({
+  className = '',
+  showMaskToggle = true,
+  initialMasked = true,
+  onClick,
+  trackingData
+}) => {
+  const [isVisible, setIsVisible] = useState(!initialMasked);
+  const { t } = useTranslation();
 
-    const handlePhoneClick = () => {
-        if (!isVisible && tExists('constants.showNumber')) return;
-        
-        trackingEventContext?.dispatch({
-            interaction: Interaction.CLICK,
-            element: {
-                value: t('constants.phoneNumberDisplay').replaceAll(' ', '-'),
-                name: ElementName.CALL_US,
-                type: ElementType.LINK
-            }
-        });
-    };
+  const handleShowNumber = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsVisible(true);
 
-    const handleShowNumber = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsVisible(true);
+    if (trackingData) {
+      trackingEventContext?.dispatch({
+        pageName: trackingData.pageName || PageName.EDIT_MOTOR_VEHICLE,
+        interaction: trackingData.interaction || Interaction.CLICK,
+        element: {
+          name: trackingData.elementName || ElementName.CALL_US,
+          value: trackingData.actionName || ActionName.SHOW_NUMBER,
+          type: trackingData.elementType || ElementType.LINK
+        }
+      });
+    }
+  };
 
-        trackingEventContext?.dispatch({
-            interaction: Interaction.CLICK,
-            element: {
-                name: ElementName.CALL_US,
-                value: ActionName.SHOW_NUMBER,
-                type: ElementType.LINK
-            }
-        });
-    };
+  const handlePhoneClick = (e: React.MouseEvent) => {
+    if (onClick) {
+      onClick(e);
+    }
+  };
 
-    return (
-        <div className="inline-flex items-center gap-1">
-            {isButton && 'Call '}
-            {tExists('constants.showNumber') ? (
-                <>
-                    {isVisible ? (
-                        <Link
-                            href={`tel:${t('constants.phoneNumber')}`}
-                            onClick={handlePhoneClick}
-                            className={isButton ? 'btn-primary' : undefined}
-                        >
-                            {t('constants.phoneNumberDisplay')}
-                        </Link>
-                    ) : (
-                        <span className="inline-flex items-center gap-1">
-                            {t('constants.maskedPhoneNumber')}
-                            <button
-                                onClick={handleShowNumber}
-                                className={`${
-                                    isButton ? 'text-white' : 'text-blue-600'
-                                } hover:text-blue-800 text-sm focus:outline-none underline`}
-                            >
-                                {t('constants.showNumber')}
-                            </button>
-                        </span>
-                    )}
-                </>
-            ) : (
-                // If showNumber doesn't exist, just display the phone number without masking
-                <Link
-                    href={`tel:${t('constants.phoneNumber')}`}
-                    onClick={handlePhoneClick}
-                    className={isButton ? 'btn-primary' : undefined}
-                >
-                    {t('constants.phoneNumberDisplay')}
-                </Link>
-            )}
-        </div>
-    );
+  const phoneNumber = t('constants.phoneNumber');
+  const displayNumber = t('constants.phoneNumberDisplay');
+  const maskedNumber = t('constants.maskedPhoneNumber');
+
+  return (
+    <div className="inline-flex items-center gap-1">
+      {showMaskToggle && !isVisible ? (
+        <span className="inline-flex items-center gap-1">
+          <Link
+            href={`tel:${phoneNumber}`}
+            onClick={handlePhoneClick}
+            className={`${className || ''} btn-primary`}
+          >
+            {displayNumber}
+          </Link>
+          <button
+            onClick={handleShowNumber}
+            className={`${
+              className ? className : 'text-white'
+            } text-sm hover:text-blue-800 focus:outline-none underline`}
+          >
+            {maskedNumber}
+          </button>
+        </span>
+      ) : (
+        <Link
+          href={`tel:${phoneNumber}`}
+          onClick={handlePhoneClick}
+          className={`${className || ''} btn-primary`}
+        >
+          {displayNumber}
+        </Link>
+      )}
+    </div>
+  );
 };
 
 export default PhoneLink;
